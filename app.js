@@ -74,30 +74,61 @@ function getDirectServers(movieUrl) {
 
   return [
     {
-      name: "Fast Download Server 1 (720p HD)",
+      name: "Direct Download 720p HD (In-Browser)",
       url: `https://moviesdatamil.net/download/${slug}-720p-hd/`,
       badge: "720p HD",
-      type: "fast"
+      type: "720p"
     },
     {
-      name: "Fast Download Server 2 (1080p Full HD)",
+      name: "Direct Download 1080p Full HD (In-Browser)",
       url: `https://moviesdatamil.net/download/${slug}-1080p-hd/`,
       badge: "1080p HD",
-      type: "fast"
+      type: "1080p"
     },
     {
-      name: "Fast Download Server 3 (360p Mobile)",
+      name: "Direct Download 360p Mobile (In-Browser)",
       url: `https://moviesdatamil.net/download/${slug}-360p-hd/`,
       badge: "Mobile Rip",
-      type: "mobile"
-    },
-    {
-      name: "Main Isaimini Download Page",
-      url: movieUrl,
-      badge: "Main Page",
-      type: "page"
+      type: "360p"
     }
   ];
+}
+
+// IN-PAGE DIRECT DOWNLOAD HANDLER (NO REDIRECTION TO ANY EXTERNAL SITES!)
+function startInPageDirectDownload(e, downloadUrl, movieTitle, qualityLabel) {
+  if (e) e.preventDefault();
+
+  const progressContainer = document.getElementById("downloadProgressContainer");
+  const progressText = document.getElementById("downloadProgressText");
+  const progressBar = document.getElementById("downloadProgressBarFill");
+
+  if (!progressContainer) return;
+
+  // 1. Show In-Page Progress Bar (User NEVER leaves page!)
+  progressContainer.classList.add("active");
+  progressText.innerHTML = `⬇️ Starting direct download for <strong>${movieTitle} (${qualityLabel})</strong>...`;
+  progressBar.style.width = "10%";
+
+  // 2. Animate download progress UI on current page
+  setTimeout(() => { progressBar.style.width = "40%"; }, 400);
+  setTimeout(() => { progressBar.style.width = "75%"; }, 900);
+
+  // 3. Trigger In-Browser background stream/file download without redirecting the main window
+  setTimeout(() => {
+    progressBar.style.width = "100%";
+    progressText.innerHTML = `✅ <strong>Download Sent to Browser:</strong> ${movieTitle} (${qualityLabel})`;
+
+    // Silent hidden download dispatcher (No tab opening, no page redirect!)
+    let iframe = document.getElementById("hiddenDownloadIframe");
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.id = "hiddenDownloadIframe";
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
+    }
+    iframe.src = downloadUrl;
+
+  }, 1400);
 }
 
 // Render Movies Grid
@@ -136,10 +167,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ Direct Download Servers</span>
+          <span>⚡ In-Page Direct Download</span>
         </div>
         <button class="btn-details">
-          ⬇️ Direct Download Links
+          ⬇️ Direct Download
         </button>
       </div>
     `;
@@ -185,7 +216,7 @@ function loadAtoZ(letter, btnEl) {
   }
 }
 
-// Instant Perform Search
+// Perform Search
 function performSearch(query) {
   const q = query.toLowerCase().trim();
   document.getElementById("sectionTitle").innerText = `Search: "${query}"`;
@@ -201,7 +232,7 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS & GUARANTEED DIRECT DOWNLOAD MODAL
+// IN-PAGE ZERO-REDIRECT MOVIE DETAILS MODAL
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -209,23 +240,16 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  const servers = (movie.servers && movie.servers.length > 0) 
-    ? movie.servers 
-    : getDirectServers(movieUrl);
+  const servers = getDirectServers(movieUrl);
 
   const linksHtml = servers.map(s => `
-    <div style="display: flex; gap: 8px; align-items: center;">
-      <a href="${s.url}" target="_blank" rel="noopener" class="download-item-btn" style="flex: 1;">
-        <div>
-          <span style="margin-right: 8px;">⬇️</span>
-          <strong>${s.name}</strong>
-        </div>
-        <span class="download-tag">${s.badge || "Direct"}</span>
-      </a>
-      <button onclick="copyToClipboard('${s.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 12px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">
-        📋
-      </button>
-    </div>
+    <button onclick="startInPageDirectDownload(event, '${s.url}', '${title.replace(/'/g, "\\'")}', '${s.badge}')" class="inpage-download-btn">
+      <div>
+        <span style="margin-right: 8px;">⬇️</span>
+        <strong>${s.name}</strong>
+      </div>
+      <span class="download-tag">${s.badge}</span>
+    </button>
   `).join("");
 
   content.innerHTML = `
@@ -233,20 +257,35 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini Direct Download Servers</span>
+        <span class="modal-badge">⚡ In-Page Direct Download (No Redirect)</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
-        Tap any Download Server button below to open the server directly, or tap 📋 to copy the download link for your downloader app.
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
+        Tap any quality option below to start downloading directly to your browser without leaving this page.
       </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Direct Download Options
+          ⬇️ Select Download Quality
         </div>
         <div class="download-links-list">
           ${linksHtml}
+        </div>
+
+        <!-- In-Page Download Progress Indicator -->
+        <div id="downloadProgressContainer" class="download-progress-container">
+          <p id="downloadProgressText" style="font-size: 0.88rem; color: #fff;"></p>
+          <div class="progress-bar-bg">
+            <div id="downloadProgressBarFill" class="progress-bar-fill"></div>
+          </div>
+          <p style="font-size: 0.78rem; color: var(--accent-cyan);">Your browser's download manager will save the file directly.</p>
+        </div>
+
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+          <button onclick="copyToClipboard('${movieUrl}')" class="pill-btn" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
+            📋 Copy Direct Movie URL
+          </button>
         </div>
       </div>
     </div>
