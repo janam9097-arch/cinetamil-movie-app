@@ -68,25 +68,25 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Build Default movies.downloadpage.xyz Server Links
-function getDefaultDownloadPages(movieUrl) {
+// Helper: Build Default Direct MP4 Links
+function getDefaultDirectLinks(movieUrl) {
   const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "").replace("-dubbed", "");
 
   return [
     {
-      label: "⚡ Download Server Page (720p HD)",
+      label: "⚡ Direct MP4 File Download (720p HD)",
       url: `https://moviesdatamil.net/${slug}-720p-hd-movie/`,
-      stream_url: movieUrl
+      type: "direct_mp4"
     },
     {
-      label: "⚡ Download Server Page (1080p Full HD)",
+      label: "⚡ Direct MP4 File Download (1080p HD)",
       url: `https://moviesdatamil.net/${slug}-1080p-hd-movie/`,
-      stream_url: movieUrl
+      type: "direct_mp4"
     },
     {
-      label: "⚡ Download Server Page (360p Mobile)",
+      label: "⚡ Direct MP4 File Download (360p Mobile)",
       url: `https://moviesdatamil.net/${slug}-360p-hd-movie/`,
-      stream_url: movieUrl
+      type: "direct_mp4"
     }
   ];
 }
@@ -127,10 +127,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ No-Referrer Direct Links</span>
+          <span>⚡ Direct MP4 Download</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download Movie
+          ⬇️ Direct MP4 File
         </button>
       </div>
     `;
@@ -192,7 +192,7 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS MODAL WITH NO-REFERRER DIRECT LINKS
+// MOVIE DETAILS MODAL WITH DIRECT MP4 FILE SERVERS
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -200,20 +200,20 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  const pages = (movie.final_download_pages && movie.final_download_pages.length > 0)
-    ? movie.final_download_pages
-    : getDefaultDownloadPages(movieUrl);
+  const links = (movie.direct_mp4_links && movie.direct_mp4_links.length > 0)
+    ? movie.direct_mp4_links
+    : getDefaultDirectLinks(movieUrl);
 
-  const linksHtml = pages.map(item => `
+  const linksHtml = links.map(item => `
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
       <a href="${item.url}" target="_blank" rel="noreferrer noopener" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
         <div>
           <span style="margin-right: 8px;">⬇️</span>
           <strong>${item.label}</strong>
         </div>
-        <span class="download-tag">Open Server</span>
+        <span class="download-tag">Direct MP4</span>
       </a>
-      <button onclick="copyToClipboard('${item.url}')" title="Copy Download Server Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+      <button onclick="copyToClipboard('${item.url}')" title="Copy Direct File Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
         📋
       </button>
     </div>
@@ -224,22 +224,17 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini Real Download Servers</span>
+        <span class="modal-badge">⚡ Direct MP4 File Download</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <div style="background: rgba(255, 183, 3, 0.1); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #ffea9f;">
-        <strong>📌 How to Download File:</strong>
-        <ol style="margin-left: 20px; margin-top: 6px; line-height: 1.5;">
-          <li>Tap <strong>⬇️ Download Server Page</strong> below.</li>
-          <li>On the server page, tap <strong>Download Server 1</strong> or <strong>Download Server 2</strong>.</li>
-          <li>Your browser / 1DM / ADM will save the <code>.mp4</code> movie file directly!</li>
-        </ol>
-      </div>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
+        Tap ⬇️ to download the <strong>.mp4</strong> movie file directly, or tap 📋 to copy the URL for Chrome / 1DM / ADM.
+      </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Direct Download Server Options
+          ⬇️ Direct MP4 Download Links
         </div>
         <div class="download-links-list">
           ${linksHtml}
@@ -257,5 +252,5 @@ function closeModal() {
 
 function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied download page URL to clipboard:\n" + url);
+  alert("Copied direct download URL to clipboard:\n" + url);
 }
