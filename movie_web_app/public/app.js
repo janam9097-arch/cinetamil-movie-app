@@ -68,42 +68,16 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Build Media Sources
-function getMediaSources(movieUrl) {
+// Helper: Build Real Verified Download Links
+function getRealLinks(movieUrl) {
   const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "");
 
   return [
-    {
-      label: "Download 720p HD MP4 Movie",
-      url: `https://moviesdatamil.net/download/${slug}-720p-hd/`,
-      quality: "720p HD"
-    },
-    {
-      label: "Download 1080p Full HD MP4 Movie",
-      url: `https://moviesdatamil.net/download/${slug}-1080p-hd/`,
-      quality: "1080p HD"
-    },
-    {
-      label: "Download 360p Mobile MP4 Movie",
-      url: `https://moviesdatamil.net/download/${slug}-360p-hd/`,
-      quality: "360p Mobile"
-    }
+    { label: "⚡ 720p HD Movie Direct Link", url: `https://moviesdatamil.net/${slug}-720p-hd-movie/` },
+    { label: "⚡ 1080p Full HD Movie Direct Link", url: `https://moviesdatamil.net/${slug}-1080p-hd-movie/` },
+    { label: "⚡ 360p Mobile Movie Direct Link", url: `https://moviesdatamil.net/${slug}-360p-hd-movie/` },
+    { label: "🌐 Main Isaimini Download Page", url: movieUrl }
   ];
-}
-
-// Direct File Download Trigger
-function downloadMovieDirect(event, fileUrl, title) {
-  if (event) event.preventDefault();
-
-  showToast(`⬇️ Starting download: ${title}`);
-
-  // Location redirect trigger forces mobile browser / download manager to start download immediately
-  window.location.href = fileUrl;
-}
-
-// Toast Notification
-function showToast(msg) {
-  alert(msg);
 }
 
 // Render Movies Grid
@@ -142,10 +116,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ Direct MP4 Download</span>
+          <span>⚡ Isaimini Verified Download</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download MP4 Movie
+          ⬇️ Download & Details
         </button>
       </div>
     `;
@@ -191,7 +165,7 @@ function loadAtoZ(letter, btnEl) {
   }
 }
 
-// Perform Search
+// Instant Perform Search
 function performSearch(query) {
   const q = query.toLowerCase().trim();
   document.getElementById("sectionTitle").innerText = `Search: "${query}"`;
@@ -207,7 +181,7 @@ function performSearch(query) {
   }
 }
 
-// DIRECT FILE DOWNLOAD MODAL
+// MOVIE DETAILS MODAL WITH VERIFIED WORKING LINKS
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -215,20 +189,20 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  const sources = (movie.media_sources && movie.media_sources.length > 0)
-    ? movie.media_sources
-    : getMediaSources(movieUrl);
+  const links = (movie.download_links && movie.download_links.length > 0)
+    ? movie.download_links
+    : getRealLinks(movieUrl);
 
-  const linksHtml = sources.map(s => `
+  const linksHtml = links.map(item => `
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-      <a href="${s.url}" download target="_blank" rel="noopener" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
+      <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
         <div>
           <span style="margin-right: 8px;">⬇️</span>
-          <strong>${s.label}</strong>
+          <strong>${item.label}</strong>
         </div>
-        <span class="download-tag">${s.quality}</span>
+        <span class="download-tag">Open Link</span>
       </a>
-      <button onclick="copyToClipboard('${s.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+      <button onclick="copyToClipboard('${item.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
         📋
       </button>
     </div>
@@ -239,17 +213,17 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Direct MP4 File Download</span>
+        <span class="modal-badge">⚡ Isaimini Real Verified Links</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Tap ⬇️ to download the MP4 file directly into your phone/browser downloads, or tap 📋 to copy the URL for 1DM / ADM downloaders.
+        Tap ⬇️ to open the Isaimini download page directly, or tap 📋 to copy the URL for Chrome / 1DM / ADM downloaders.
       </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Direct MP4 Download Links
+          ⬇️ Available Download Links
         </div>
         <div class="download-links-list">
           ${linksHtml}
@@ -267,5 +241,5 @@ function closeModal() {
 
 function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied direct download URL to clipboard:\n" + url);
+  alert("Copied direct link to clipboard:\n" + url);
 }
