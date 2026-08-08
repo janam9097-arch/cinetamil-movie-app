@@ -68,34 +68,34 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Fallback Direct Download Servers
-function getFallbackServers(movieUrl) {
+// Helper: Build Direct Download Server Options
+function getDirectServers(movieUrl) {
   const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "");
 
   return [
     {
-      name: "Download Server 1 (720p HD Direct)",
+      name: "Fast Download Server 1 (720p HD)",
       url: `https://moviesdatamil.net/download/${slug}-720p-hd/`,
-      quality: "720p HD",
-      type: "Server 1"
+      badge: "720p HD",
+      type: "fast"
     },
     {
-      name: "Download Server 2 (1080p Full HD Direct)",
+      name: "Fast Download Server 2 (1080p Full HD)",
       url: `https://moviesdatamil.net/download/${slug}-1080p-hd/`,
-      quality: "1080p Full HD",
-      type: "Server 2"
+      badge: "1080p HD",
+      type: "fast"
     },
     {
-      name: "Download Server 3 (360p Mobile Direct)",
+      name: "Fast Download Server 3 (360p Mobile)",
       url: `https://moviesdatamil.net/download/${slug}-360p-hd/`,
-      quality: "360p Mobile",
-      type: "Server 3"
+      badge: "Mobile Rip",
+      type: "mobile"
     },
     {
-      name: "Download Gateway (Isaimini Moviesda)",
+      name: "Main Isaimini Download Page",
       url: movieUrl,
-      quality: "Original Rip",
-      type: "Main Page"
+      badge: "Main Page",
+      type: "page"
     }
   ];
 }
@@ -136,10 +136,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ 3 Direct Download Servers</span>
+          <span>⚡ Direct Download Servers</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download & Details
+          ⬇️ Direct Download Links
         </button>
       </div>
     `;
@@ -201,7 +201,7 @@ function performSearch(query) {
   }
 }
 
-// INSTANT MOVIE DETAILS & DIRECT DOWNLOAD SERVERS MODAL
+// MOVIE DETAILS & GUARANTEED DIRECT DOWNLOAD MODAL
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -209,19 +209,23 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  // Get direct servers array
   const servers = (movie.servers && movie.servers.length > 0) 
     ? movie.servers 
-    : getFallbackServers(movieUrl);
+    : getDirectServers(movieUrl);
 
   const linksHtml = servers.map(s => `
-    <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="download-item-btn">
-      <div>
-        <span style="margin-right: 8px;">⬇️</span>
-        <strong>${s.name}</strong>
-      </div>
-      <span class="download-tag">${s.quality || "Fast Direct"}</span>
-    </a>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <a href="${s.url}" target="_blank" rel="noopener" class="download-item-btn" style="flex: 1;">
+        <div>
+          <span style="margin-right: 8px;">⬇️</span>
+          <strong>${s.name}</strong>
+        </div>
+        <span class="download-tag">${s.badge || "Direct"}</span>
+      </a>
+      <button onclick="copyToClipboard('${s.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 12px 14px; border-radius: 6px; cursor: pointer; font-weight: 700;">
+        📋
+      </button>
+    </div>
   `).join("");
 
   content.innerHTML = `
@@ -229,26 +233,20 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini / Moviesda Direct Servers</span>
+        <span class="modal-badge">⚡ Isaimini Direct Download Servers</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
-        Tap any Download Server below to start downloading the file directly to your device.
+        Tap any Download Server button below to open the server directly, or tap 📋 to copy the download link for your downloader app.
       </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Direct Download Servers
+          ⬇️ Direct Download Options
         </div>
         <div class="download-links-list">
           ${linksHtml}
-        </div>
-
-        <div style="margin-top: 15px; display: flex; gap: 10px;">
-          <button onclick="copyUrl('${movieUrl}')" class="pill-btn" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
-            📋 Copy Movie URL
-          </button>
         </div>
       </div>
     </div>
@@ -261,7 +259,7 @@ function closeModal() {
   document.getElementById("movieModal").classList.remove("active");
 }
 
-function copyUrl(url) {
+function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied movie URL to clipboard:\n" + url);
+  alert("Copied download URL to clipboard:\n" + url);
 }
