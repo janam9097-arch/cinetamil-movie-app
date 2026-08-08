@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="referrer" content="no-referrer">
-  <title>CineTamil - Direct Isaimini Movie Downloader</title>
-  <meta name="description" content="Search Tamil movies, download HD rips, browse 2026-2015 movies, Tamil dubbed, and web series with direct no-referrer download links.">
-  <link rel="stylesheet" href="styles.css?v=13.0">
+  <title>CineTamil - Direct MP4 Movie Downloader</title>
+  <meta name="description" content="Search Tamil movies, download HD MP4 Rips directly to your device with 1-tap download links.">
+  <link rel="stylesheet" href="styles.css?v=15.0">
 </head>
 <body>
 
@@ -17,7 +20,7 @@
         <div class="brand-icon">🎬</div>
         <div>
           <div class="brand-title">CINE TAMIL</div>
-          <div class="brand-subtitle">Direct Movie Downloader</div>
+          <div class="brand-subtitle">Direct MP4 Downloader</div>
         </div>
       </a>
 
@@ -31,14 +34,14 @@
 
   <!-- Hero & Search -->
   <section class="container hero">
-    <h1 class="hero-heading">Direct Isaimini <span>Movie Downloader</span></h1>
+    <h1 class="hero-heading">Direct MP4 <span>Movie Downloader</span></h1>
     <p class="hero-sub">Tap any download button to save the MP4 movie file directly to your device without referrer blocks.</p>
 
     <!-- Search Box -->
     <div class="search-form">
       <div class="search-input-wrapper">
         <span class="icon">🔍</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="Type movie name (e.g. Jawan, Leo, Vikram, DC, Amaran, GOAT)...">
+        <input type="text" id="searchInput" class="search-input" placeholder="Type movie name (e.g. Jawan, Mask, Leo, Vikram, DC, Amaran, GOAT)...">
       </div>
     </div>
 
@@ -79,12 +82,16 @@
   <!-- Footer -->
   <footer>
     <div class="container">
-      <p>CineTamil Direct Movie Downloader Engine</p>
-      <p style="margin-top: 4px; opacity: 0.7;">No-referrer direct download link retriever</p>
+      <p>CineTamil Direct Movie Downloader Engine (v15.0)</p>
+      <p style="margin-top: 6px; display: flex; gap: 10px; justify-content: center; align-items: center;">
+        <button onclick="clearCacheAndReload()" class="pill-btn" style="border-color: var(--accent-gold); color: var(--accent-gold); padding: 4px 12px; font-size: 0.78rem;">
+          🔄 Refresh Latest Data & Clear Cache
+        </button>
+      </p>
     </div>
   </footer>
 
-  <script src="movies_data.js?v=13.0"></script>
-  <script src="app.js?v=13.0"></script>
+  <script src="movies_data.js?v=15.0"></script>
+  <script src="app.js?v=15.0"></script>
 </body>
 </html>

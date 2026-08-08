@@ -254,3 +254,14 @@ function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
   alert("Copied direct download URL to clipboard:\n" + url);
 }
+
+function clearCacheAndReload() {
+  if (window.caches) {
+    caches.keys().then(names => {
+      names.forEach(name => caches.delete(name));
+    });
+  }
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.reload(true);
+}
