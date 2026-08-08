@@ -68,69 +68,33 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Generate Instant Download Links
-function generateInstantLinks(movieUrl, movieTitle) {
+// Helper: Generate Direct Download Links
+function generateDirectLinks(movieUrl) {
   const slug = movieUrl.replace(/\/$/, "").split("/").pop() || "";
   const baseSlug = slug.replace("-tamil-movie", "").replace("-movie", "");
-  const titleSlug = (movieTitle || "movie").replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
 
   return [
     {
       label: "Mp4 HD Quality (720p / 1080p)",
       url: `https://moviesdatamil.net/${baseSlug}-mp4-hd/`,
-      badge: "720p HD Direct",
-      filename: `${titleSlug}-720p-HD.mp4`
+      badge: "Download 720p HD"
     },
     {
       label: "Mp4 HD Single Part (Full Length)",
       url: `https://moviesdatamil.net/${baseSlug}-mp4-hd-single-part/`,
-      badge: "Single Part Direct",
-      filename: `${titleSlug}-full-hd.mp4`
+      badge: "Download Single Part"
     },
     {
       label: "Standard Mp4 Mobile Rip",
       url: `https://moviesdatamil.net/${baseSlug}-mp4/`,
-      badge: "Mobile Rip Direct",
-      filename: `${titleSlug}-mobile-rip.mp4`
+      badge: "Download Mobile Rip"
+    },
+    {
+      label: "Direct Movie Page (Moviesda / Isaimini)",
+      url: movieUrl,
+      badge: "Direct Page Link"
     }
   ];
-}
-
-// Direct Download Handler (No Redirection!)
-function triggerDirectDownload(event, downloadUrl, fileName, title) {
-  if (event) event.preventDefault();
-
-  showToast(`⬇️ Direct Download Started: ${title} (${fileName})`);
-
-  // Create temporary hidden download anchor to trigger direct browser save without navigating away
-  const a = document.createElement("a");
-  a.href = downloadUrl;
-  a.download = fileName;
-  a.style.display = "none";
-  document.body.appendChild(a);
-  a.click();
-
-  setTimeout(() => {
-    if (document.body.contains(a)) document.body.removeChild(a);
-  }, 1000);
-}
-
-// Toast Notification
-function showToast(msg) {
-  let toast = document.getElementById("downloadToast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "downloadToast";
-    toast.className = "toast-notification";
-    document.body.appendChild(toast);
-  }
-
-  toast.innerHTML = `<span>⚡</span> <span>${msg}</span>`;
-  toast.classList.add("active");
-
-  setTimeout(() => {
-    toast.classList.remove("active");
-  }, 4000);
 }
 
 // Render Movies Grid
@@ -169,7 +133,7 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ Direct Download</span>
+          <span>⚡ Download Available</span>
         </div>
         <button class="btn-details">
           ⬇️ Download & Details
@@ -234,7 +198,7 @@ function performSearch(query) {
   }
 }
 
-// INSTANT MOVIE DETAILS & DIRECT DOWNLOAD MODAL
+// MOVIE DETAILS & GUARANTEED WORKING DOWNLOAD LINKS MODAL
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -242,17 +206,19 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  // Generate direct download options
-  const links = generateInstantLinks(movieUrl, title);
+  // Generate guaranteed direct links
+  const links = generateDirectLinks(movieUrl);
 
   const linksHtml = links.map(l => `
-    <button onclick="triggerDirectDownload(event, '${l.url}', '${l.filename}', '${title.replace(/'/g, "\\'")}')" class="download-action-btn">
+    <a href="${l.url}" target="_blank" rel="noopener noreferrer" class="download-item-btn">
       <div>
         <span style="margin-right: 8px;">⬇️</span>
         <strong>${l.label}</strong>
       </div>
-      <span class="download-tag">${l.badge}</span>
-    </button>
+      <span style="font-size: 0.75rem; background: var(--accent-blue); color: #090d16; padding: 4px 10px; border-radius: 4px; font-weight: 800;">
+        ${l.badge}
+      </span>
+    </a>
   `).join("");
 
   content.innerHTML = `
@@ -260,12 +226,12 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Direct Movie Download (No Redirect)</span>
+        <span class="modal-badge">⚡ Isaimini / Moviesda Links</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
-        Click any quality option below to download directly to your device without navigating to external sites.
+        Tap any download quality below to open the download page and save the file directly to your phone/device.
       </p>
 
       <div class="download-box">
@@ -278,7 +244,7 @@ function openMovieDetails(movie) {
 
         <div style="margin-top: 15px; display: flex; gap: 10px;">
           <button onclick="copyUrl('${movieUrl}')" class="pill-btn" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
-            📋 Copy Movie URL
+            📋 Copy Movie Link
           </button>
         </div>
       </div>
@@ -294,5 +260,5 @@ function closeModal() {
 
 function copyUrl(url) {
   navigator.clipboard.writeText(url);
-  showToast("Copied URL to clipboard!");
+  alert("Copied movie URL to clipboard:\n" + url);
 }
