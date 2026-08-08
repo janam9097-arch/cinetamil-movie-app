@@ -68,30 +68,25 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Guaranteed 200 OK Download Links
-function getVerifiedLinks(movieUrl) {
-  const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "").replace("-dubbed", "").replace("-web-series", "");
+// Helper: Build Default movies.downloadpage.xyz Server Links
+function getDefaultDownloadPages(movieUrl) {
+  const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "").replace("-dubbed", "");
 
   return [
     {
-      label: "⚡ Download 720p HD Movie",
+      label: "⚡ Final Download Server Page (720p HD)",
       url: `https://moviesdatamil.net/${slug}-720p-hd-movie/`,
-      badge: "720p HD"
+      stream_url: movieUrl
     },
     {
-      label: "⚡ Download 1080p Full HD Movie",
+      label: "⚡ Final Download Server Page (1080p Full HD)",
       url: `https://moviesdatamil.net/${slug}-1080p-hd-movie/`,
-      badge: "1080p HD"
+      stream_url: movieUrl
     },
     {
-      label: "⚡ Download 360p Mobile Movie",
+      label: "⚡ Final Download Server Page (360p Mobile)",
       url: `https://moviesdatamil.net/${slug}-360p-hd-movie/`,
-      badge: "360p Mobile"
-    },
-    {
-      label: "🌐 Main Movie Page",
-      url: movieUrl,
-      badge: "Main Link"
+      stream_url: movieUrl
     }
   ];
 }
@@ -132,7 +127,7 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ 200 OK Download Links</span>
+          <span>⚡ movies.downloadpage.xyz Server</span>
         </div>
         <button class="btn-details">
           ⬇️ Download & Details
@@ -197,7 +192,7 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS MODAL WITH GUARANTEED 200 OK DOWNLOAD LINKS
+// MOVIE DETAILS MODAL WITH movies.downloadpage.xyz FINAL DOWNLOAD SERVER LINKS
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -205,20 +200,20 @@ function openMovieDetails(movie) {
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
 
-  const links = (movie.verified_links && movie.verified_links.length > 0)
-    ? movie.verified_links
-    : getVerifiedLinks(movieUrl);
+  const pages = (movie.final_download_pages && movie.final_download_pages.length > 0)
+    ? movie.final_download_pages
+    : getDefaultDownloadPages(movieUrl);
 
-  const linksHtml = links.map(item => `
+  const linksHtml = pages.map(item => `
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
       <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
         <div>
           <span style="margin-right: 8px;">⬇️</span>
           <strong>${item.label}</strong>
         </div>
-        <span class="download-tag">${item.badge || "Open Link"}</span>
+        <span class="download-tag">Open Server</span>
       </a>
-      <button onclick="copyToClipboard('${item.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+      <button onclick="copyToClipboard('${item.url}')" title="Copy Download Server Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
         📋
       </button>
     </div>
@@ -229,17 +224,17 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini / Moviesda Active Links</span>
+        <span class="modal-badge">⚡ Isaimini / movies.downloadpage.xyz Server</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Tap ⬇️ to open the resolution download page, or tap 📋 to copy the URL for 1DM / ADM downloaders.
+        Tap ⬇️ to open the <strong>movies.downloadpage.xyz</strong> final server download selection page, then tap Download Server 1/2 to save the movie!
       </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Direct Download Links (0 404 Errors)
+          ⬇️ Final Download Server Links
         </div>
         <div class="download-links-list">
           ${linksHtml}
@@ -257,5 +252,5 @@ function closeModal() {
 
 function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied direct link to clipboard:\n" + url);
+  alert("Copied download page URL to clipboard:\n" + url);
 }
