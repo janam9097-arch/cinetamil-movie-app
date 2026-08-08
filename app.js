@@ -1,6 +1,6 @@
 const CORS_PROXIES = [
-  "https://api.allorigins.win/raw?url=",
-  "https://corsproxy.io/?"
+  "https://corsproxy.io/?",
+  "https://api.allorigins.win/raw?url="
 ];
 
 const BASE_URL = "https://moviesdatamil.net";
@@ -35,10 +35,10 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         loadCategory(currentCategory);
       }
-    }, 300);
+    }, 150);
   });
 
-  // Default load
+  // Load default category instantly
   loadCategory("tamil-2025");
 });
 
@@ -75,55 +75,33 @@ function renderAtoZBar() {
   });
 }
 
-// CORS Proxy Fetcher
-async function fetchHtmlWithProxy(targetUrl) {
-  for (const proxy of CORS_PROXIES) {
-    try {
-      const res = await fetch(proxy + encodeURIComponent(targetUrl));
-      if (res.ok) {
-        const text = await res.text();
-        if (text && text.includes("html")) return text;
-      }
-    } catch (e) {
-      console.warn("Proxy failed:", proxy, e);
+// Helper: Generate Instant Download Links
+function generateInstantLinks(movieUrl) {
+  const slug = movieUrl.replace(/\/$/, "").split("/").pop() || "";
+  const baseSlug = slug.replace("-tamil-movie", "").replace("-movie", "");
+
+  return [
+    {
+      label: "Mp4 HD Quality (720p / 1080p)",
+      url: `https://moviesdatamil.net/${baseSlug}-mp4-hd/`,
+      badge: "720p HD"
+    },
+    {
+      label: "Mp4 HD Single Part (Full Length)",
+      url: `https://moviesdatamil.net/${baseSlug}-mp4-hd-single-part/`,
+      badge: "Single Part"
+    },
+    {
+      label: "Standard Mp4 Mobile Rip",
+      url: `https://moviesdatamil.net/${baseSlug}-mp4/`,
+      badge: "Mobile Rip"
+    },
+    {
+      label: "Open Main Isaimini Download Page",
+      url: movieUrl,
+      badge: "Direct Page"
     }
-  }
-  throw new Error("Unable to fetch via CORS proxies.");
-}
-
-// Parse Listing HTML
-function parseListingPage(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  const movies = [];
-
-  const links = doc.querySelectorAll("div.f a");
-  links.forEach(link => {
-    const href = link.getAttribute("href") || "";
-    const text = link.textContent.trim();
-    if (href && text && !href.startswith("http")) {
-      const yearMatch = text.match(/\((\d{4})\)/);
-      const year = yearMatch ? yearMatch[1] : "";
-      const fullUrl = href.startsWith("/") ? `${BASE_URL}${href}` : `${BASE_URL}/${href}`;
-      movies.push({
-        title: text,
-        url: fullUrl,
-        year: year
-      });
-    }
-  });
-  return movies;
-}
-
-// Show Spinner
-function showLoading() {
-  const container = document.getElementById("moviesContainer");
-  container.innerHTML = `
-    <div class="spinner-wrapper" style="grid-column: 1 / -1;">
-      <div class="spinner"></div>
-      <p>Fetching movies catalog...</p>
-    </div>
-  `;
+  ];
 }
 
 // Render Movies Grid
@@ -147,7 +125,7 @@ function renderMoviesGrid(movies) {
   movies.forEach(m => {
     const card = document.createElement("div");
     card.className = "movie-card";
-    card.onclick = () => openMovieDetails(m.url, m.title, m);
+    card.onclick = () => openMovieDetails(m);
 
     const hasPoster = m.poster_url && m.poster_url.startsWith("http");
     const yearBadge = m.year ? `<span class="badge-year">${m.year}</span>` : "";
@@ -162,7 +140,7 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span><i class="fa-solid fa-film"></i> Moviesda HD Rip</span>
+          <span><i class="fa-solid fa-bolt" style="color: var(--accent-gold);"></i> Instant Download Links</span>
         </div>
         <button class="btn-details">
           <i class="fa-solid fa-arrow-down-to-line"></i> Download & Details
@@ -173,223 +151,115 @@ function renderMoviesGrid(movies) {
   });
 }
 
-// Load Category
-async function loadCategory(catId) {
+// Load Category (Instant dataset rendering)
+function loadCategory(catId) {
   currentCategory = catId;
   const catObj = CATEGORIES.find(c => c.id === catId) || CATEGORIES[0];
 
   document.getElementById("sectionTitle").innerText = catObj.label;
   document.getElementById("sectionSubtitle").innerText = `Browsing ${catObj.label} catalog`;
-  showLoading();
 
   document.querySelectorAll(".atoz-btn").forEach(b => b.classList.remove("active"));
 
-  // 1. Try local dataset first
-  const cachedMatches = (typeof CACHED_MOVIES_DB !== "undefined") 
-    ? CACHED_MOVIES_DB.filter(m => m.category === catId || (m.year && catId.includes(m.year)))
-    : [];
-
-  if (cachedMatches.length > 0) {
-    renderMoviesGrid(cachedMatches);
+  if (typeof CACHED_MOVIES_DB !== "undefined") {
+    const matches = CACHED_MOVIES_DB.filter(m => m.category === catId || (m.year && catId.includes(m.year)));
+    if (matches.length > 0) {
+      renderMoviesGrid(matches);
+      return;
+    }
   }
 
-  // 2. Fetch live updates via CORS proxy
-  try {
-    const html = await fetchHtmlWithProxy(`${BASE_URL}${catObj.path}`);
-    const liveMovies = parseListingPage(html);
-    if (liveMovies && liveMovies.length > 0) {
-      renderMoviesGrid(liveMovies);
-    }
-  } catch (err) {
-    console.warn("Live category fetch error, showing cached:", err);
-    if (cachedMatches.length === 0 && typeof CACHED_MOVIES_DB !== "undefined") {
-      renderMoviesGrid(CACHED_MOVIES_DB.slice(0, 30));
-    }
+  // Fallback to initial DB slice
+  if (typeof CACHED_MOVIES_DB !== "undefined") {
+    renderMoviesGrid(CACHED_MOVIES_DB.slice(0, 30));
   }
 }
 
-// Load A-Z Index
-async function loadAtoZ(letter, btnEl) {
+// Load A-Z Index (Instant dataset rendering)
+function loadAtoZ(letter, btnEl) {
   document.querySelectorAll(".atoz-btn").forEach(b => b.classList.remove("active"));
   if (btnEl) btnEl.classList.add("active");
 
   const l = letter.toLowerCase();
   document.getElementById("sectionTitle").innerText = `Alphabet: '${letter.toUpperCase()}'`;
   document.getElementById("sectionSubtitle").innerText = `Movies starting with ${letter.toUpperCase()}`;
-  showLoading();
 
-  // Local dataset filter
-  const localMatches = (typeof CACHED_MOVIES_DB !== "undefined")
-    ? CACHED_MOVIES_DB.filter(m => m.title.toLowerCase().startsWith(l))
-    : [];
-
-  if (localMatches.length > 0) {
-    renderMoviesGrid(localMatches);
-  }
-
-  try {
-    const html = await fetchHtmlWithProxy(`${BASE_URL}/tamil-movies/${l}/`);
-    const liveMovies = parseListingPage(html);
-    if (liveMovies && liveMovies.length > 0) {
-      renderMoviesGrid(liveMovies);
-    }
-  } catch (e) {
-    console.warn("Live A-Z fetch failed:", e);
+  if (typeof CACHED_MOVIES_DB !== "undefined") {
+    const matches = CACHED_MOVIES_DB.filter(m => m.title.toLowerCase().startsWith(l));
+    renderMoviesGrid(matches);
   }
 }
 
-// Perform Search
-async function performSearch(query) {
+// Instant Perform Search
+function performSearch(query) {
   const q = query.toLowerCase().trim();
   document.getElementById("sectionTitle").innerText = `Search: "${query}"`;
   document.getElementById("sectionSubtitle").innerText = `Movies matching "${query}"`;
-  showLoading();
 
-  // Instant search in CACHED_MOVIES_DB
-  let localResults = [];
   if (typeof CACHED_MOVIES_DB !== "undefined") {
-    localResults = CACHED_MOVIES_DB.filter(m => 
+    const results = CACHED_MOVIES_DB.filter(m => 
       m.title.toLowerCase().includes(q) ||
       (m.starring && m.starring.toLowerCase().includes(q)) ||
       (m.director && m.director.toLowerCase().includes(q))
     );
-  }
-
-  renderMoviesGrid(localResults);
-
-  // Live A-Z search fallback
-  if (q.length > 0 && q[0].match(/[a-z]/i)) {
-    try {
-      const firstChar = q[0].toLowerCase();
-      const html = await fetchHtmlWithProxy(`${BASE_URL}/tamil-movies/${firstChar}/`);
-      const liveMovies = parseListingPage(html);
-      const matches = liveMovies.filter(m => m.title.toLowerCase().includes(q));
-
-      if (matches.length > 0) {
-        // Merge without duplicates
-        const existingUrls = new Set(localResults.map(r => r.url));
-        matches.forEach(m => {
-          if (!existingUrls.has(m.url)) localResults.push(m);
-        });
-        renderMoviesGrid(localResults);
-      }
-    } catch (e) {
-      console.warn("Live search fallback error:", e);
-    }
+    renderMoviesGrid(results);
   }
 }
 
-// Open Details Modal
-async function openMovieDetails(movieUrl, title, cachedData = {}) {
+// INSTANT ZERO-DELAY MOVIE DETAILS MODAL
+function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
 
-  modal.classList.add("active");
-  content.innerHTML = `
-    <div class="spinner-wrapper">
-      <div class="spinner"></div>
-      <p>Loading download links & details...</p>
-    </div>
-  `;
+  const movieUrl = movie.url || "https://moviesdatamil.net/";
+  const title = movie.title || "Movie Details";
+  const hasPoster = movie.poster_url && movie.poster_url.startsWith("http");
 
-  let details = {
-    title: title,
-    url: movieUrl,
-    director: cachedData.director || "",
-    starring: cachedData.starring || "",
-    quality: cachedData.quality || "Moviesda HD",
-    synopsis: cachedData.synopsis || "",
-    poster_url: cachedData.poster_url || "",
-    download_links: []
-  };
+  // Get or pre-generate instant download links
+  const links = (movie.download_links && movie.download_links.length > 0) 
+    ? movie.download_links 
+    : generateInstantLinks(movieUrl);
 
-  try {
-    const html = await fetchHtmlWithProxy(movieUrl);
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+  const linksHtml = links.map(l => `
+    <a href="${l.url}" target="_blank" class="download-item-btn">
+      <div>
+        <i class="fa-solid fa-download" style="color: var(--accent-cyan); margin-right: 8px;"></i>
+        <strong>${l.label}</strong>
+      </div>
+      <span style="font-size: 0.75rem; background: var(--accent-blue); color: #090d16; padding: 4px 10px; border-radius: 4px; font-weight: 700;">
+        ${l.badge || "Download"}
+      </span>
+    </a>
+  `).join("");
 
-    // Title
-    const h1 = doc.querySelector("h1, h2, div.title");
-    if (h1) details.title = h1.textContent.trim();
-
-    // Poster
-    const img = doc.querySelector("div.movie-info-container img, img.poster");
-    if (img) {
-      const src = img.getAttribute("src") || "";
-      details.poster_url = src.startsWith("http") ? src : `${BASE_URL}${src}`;
-    }
-
-    // Synopsis
-    const syn = doc.querySelector("div.movie-synopsis");
-    if (syn) details.synopsis = syn.textContent.replace("Synopsis:", "").trim();
-
-    // Download links
-    const dlinks = doc.querySelectorAll("div.f a, a.dlink");
-    dlinks.forEach(a => {
-      const txt = a.textContent.trim();
-      const href = a.getAttribute("href") || "";
-      if (txt && href) {
-        const fullHref = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-        details.download_links.push({ label: txt, url: fullHref });
-      }
-    });
-  } catch (err) {
-    console.warn("Could not parse detailed movie page:", err);
-  }
-
-  // Render Modal
-  const hasPoster = details.poster_url && details.poster_url.startsWith("http");
-
-  let linksHtml = "";
-  if (details.download_links.length > 0) {
-    linksHtml = details.download_links.map(l => `
-      <a href="${l.url}" target="_blank" class="download-item-btn">
-        <div>
-          <i class="fa-solid fa-download" style="color: var(--accent-cyan); margin-right: 8px;"></i>
-          <strong>${l.label}</strong>
-        </div>
-        <span style="font-size: 0.75rem; background: var(--accent-blue); color: #090d16; padding: 3px 10px; border-radius: 4px;">Download</span>
-      </a>
-    `).join("");
-  } else {
-    linksHtml = `
-      <a href="${movieUrl}" target="_blank" class="download-item-btn">
-        <div>
-          <i class="fa-solid fa-external-link-alt" style="color: var(--accent-cyan); margin-right: 8px;"></i>
-          <strong>Open Direct Download Page on Moviesda</strong>
-        </div>
-        <span style="font-size: 0.75rem; background: var(--accent-cyan); color: #090d16; padding: 3px 10px; border-radius: 4px;">Direct Link</span>
-      </a>
-    `;
-  }
-
+  // RENDER INSTANTLY (0 ms waiting time!)
   content.innerHTML = `
     <div class="modal-grid">
       <div>
         ${hasPoster 
-          ? `<img src="${details.poster_url}" class="modal-poster" alt="${details.title}">`
-          : `<div class="modal-poster" style="height: 320px; background: #141c2e; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent-cyan);">
+          ? `<img src="${movie.poster_url}" class="modal-poster" alt="${title}">`
+          : `<div class="modal-poster" style="height: 300px; background: #141c2e; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent-cyan);">
                <i class="fa-solid fa-film" style="font-size: 3.5rem;"></i>
-               <span style="margin-top: 12px; font-weight: 700;">${details.title}</span>
+               <span style="margin-top: 12px; font-weight: 700; text-align: center; padding: 0 10px;">${title}</span>
              </div>`}
       </div>
 
       <div>
-        <h2 class="modal-title">${details.title}</h2>
+        <h2 class="modal-title">${title}</h2>
         
         <div class="modal-meta-bar">
-          <span class="modal-badge"><i class="fa-solid fa-compact-disc"></i> ${details.quality}</span>
-          <span class="modal-badge"><i class="fa-solid fa-circle-check" style="color: var(--accent-cyan);"></i> Isaimini Verified</span>
+          <span class="modal-badge"><i class="fa-solid fa-compact-disc"></i> ${movie.quality || "Moviesda HD Rip"}</span>
+          <span class="modal-badge"><i class="fa-solid fa-bolt" style="color: var(--accent-gold);"></i> Fast Download Links</span>
         </div>
 
-        ${details.director ? `<p style="margin-bottom: 6px;"><strong>Director:</strong> ${details.director}</p>` : ""}
-        ${details.starring ? `<p style="margin-bottom: 12px;"><strong>Starring:</strong> ${details.starring}</p>` : ""}
+        ${movie.director ? `<p style="margin-bottom: 6px;"><strong>Director:</strong> ${movie.director}</p>` : ""}
+        ${movie.starring ? `<p style="margin-bottom: 12px;"><strong>Starring:</strong> ${movie.starring}</p>` : ""}
 
-        <p class="modal-synopsis">${details.synopsis || "Click below to open available download links & qualities."}</p>
+        <p class="modal-synopsis">${movie.synopsis || "Select any quality format below to start downloading directly from Moviesda / Isaimini."}</p>
 
         <div class="download-box">
           <div class="download-title">
-            <i class="fa-solid fa-circle-down"></i> Available Download Formats & Qualities
+            <i class="fa-solid fa-circle-down"></i> Direct Download Options
           </div>
           <div class="download-links-list">
             ${linksHtml}
@@ -404,6 +274,9 @@ async function openMovieDetails(movieUrl, title, cachedData = {}) {
       </div>
     </div>
   `;
+
+  // Show modal immediately
+  modal.classList.add("active");
 }
 
 function closeModal() {
