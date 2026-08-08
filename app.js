@@ -34,7 +34,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Load default category
   loadCategory("tamil-2025");
 });
 
@@ -184,46 +183,47 @@ function performSearch(query) {
   }
 }
 
-// DOWNLOAD CLICK HANDLER WITH FULL CONSOLE LOGGING & GRACEFUL ERROR HANDLING
-function handleDownloadClick(event, targetUrl, movieTitle) {
+// DIRECT DOWNLOAD BUTTON CLICK HANDLER
+function handleDownloadClick(event, downloadUrl, movieTitle) {
   if (event) event.preventDefault();
 
-  console.log("==========================================");
-  console.log("[CineTamil Download] Movie Title:", movieTitle);
-  console.log("[CineTamil Download] Target URL:", targetUrl);
-  console.log("==========================================");
+  console.log("------------------------------------------");
+  console.log("[CineTamil Debug] Executing handleDownloadClick");
+  console.log("Movie:", movieTitle);
+  console.log("Button URL:", downloadUrl);
 
-  const statusBox = document.getElementById("downloadStatusNotice");
+  const statusNotice = document.getElementById("downloadStatusNotice");
 
-  // Validate URL presence & structure
-  if (!targetUrl || targetUrl.trim() === "" || targetUrl === "#" || targetUrl === "https://moviesdatamil.net/" || targetUrl === "https://moviesdatamil.net") {
-    console.warn("[CineTamil Download] Warning: Target URL is invalid or points to homepage:", targetUrl);
-    if (statusBox) {
-      statusBox.style.display = "block";
-      statusBox.innerHTML = "⚠️ <strong>Notice:</strong> Download link is currently unavailable or has been redirected.";
+  // Validate that downloadUrl is non-empty and not pointing to default homepage
+  if (!downloadUrl || downloadUrl.trim() === "" || downloadUrl === "#" || downloadUrl === "https://moviesdatamil.net/" || downloadUrl === "https://moviesdatamil.net") {
+    console.warn("[CineTamil Debug] Error: downloadUrl is missing or points to homepage:", downloadUrl);
+    if (statusNotice) {
+      statusNotice.style.display = "block";
+      statusNotice.innerHTML = "⚠️ <strong>Notice:</strong> This link is unavailable or has been redirected.";
     } else {
-      alert("Download link is currently unavailable or has been redirected.");
+      alert("This link is unavailable or has been redirected.");
     }
     return;
   }
 
-  // Clear notice box if URL is valid
-  if (statusBox) {
-    statusBox.style.display = "none";
+  if (statusNotice) {
+    statusNotice.style.display = "none";
   }
 
-  // Open destination URL in a new window/tab
+  // Log final URL immediately before opening link
+  console.log("[CineTamil Debug] Opening final URL immediately before navigation:", downloadUrl);
+  console.log("------------------------------------------");
+
   try {
-    const win = window.open(targetUrl, "_blank");
+    const win = window.open(downloadUrl, "_blank");
     if (!win) {
-      // Browser popup blocked
-      window.location.href = targetUrl;
+      window.location.href = downloadUrl;
     }
   } catch (err) {
-    console.error("[CineTamil Download] Failed to open URL:", err);
-    if (statusBox) {
-      statusBox.style.display = "block";
-      statusBox.innerHTML = "⚠️ <strong>Notice:</strong> Download link is currently unavailable or has been redirected.";
+    console.error("[CineTamil Debug] Navigation failed:", err);
+    if (statusNotice) {
+      statusNotice.style.display = "block";
+      statusNotice.innerHTML = "⚠️ <strong>Notice:</strong> This link is unavailable or has been redirected.";
     }
   }
 }
@@ -233,12 +233,17 @@ function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
 
-  const movieUrl = movie.url || "";
+  // Preserve exact URL from data object without modifications
+  const downloadUrl = movie.downloadUrl || movie.url || "";
   const title = movie.title || "Movie Details";
   const quality = movie.quality || "HD Rip";
 
-  console.log("[CineTamil Modal] Opening modal for movie object:", movie);
-  console.log("[CineTamil Modal] Assigned Legitimate URL from movies_data.js:", movieUrl);
+  // Step-by-Step Debug Logging
+  console.log("==========================================");
+  console.log("Movie:", movie.title);
+  console.log("Data URL:", movie.downloadUrl || movie.url);
+  console.log("Button URL:", downloadUrl);
+  console.log("==========================================");
 
   content.innerHTML = `
     <div>
@@ -250,10 +255,10 @@ function openMovieDetails(movie) {
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Click the download button below to access the project's movie page URL.
+        Click the download button below to access the project's movie URL directly.
       </p>
 
-      <!-- Graceful Error / Status Notification Container -->
+      <!-- Error / Status Notice Container -->
       <div id="downloadStatusNotice" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #fca5a5;">
       </div>
 
@@ -264,14 +269,14 @@ function openMovieDetails(movie) {
 
         <div class="download-links-list">
           <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-            <button onclick="handleDownloadClick(event, '${movieUrl}', '${title.replace(/'/g, "\\'")}')" class="inpage-download-btn" style="flex: 1;">
+            <button onclick="handleDownloadClick(event, '${downloadUrl}', '${title.replace(/'/g, "\\'")}')" class="inpage-download-btn" style="flex: 1;">
               <div>
                 <span style="margin-right: 8px;">⬇️</span>
                 <strong>Open Movie Page (${quality})</strong>
               </div>
               <span class="download-tag">Open Link</span>
             </button>
-            <button onclick="copyToClipboard('${movieUrl}')" title="Copy Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+            <button onclick="copyToClipboard('${downloadUrl}')" title="Copy Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
               📋
             </button>
           </div>
@@ -291,9 +296,9 @@ function closeModal() {
 
 // COPY TO CLIPBOARD
 function copyToClipboard(url) {
-  console.log("[CineTamil Copy] Copying URL to clipboard:", url);
+  console.log("[CineTamil Copy] Copying URL:", url);
   if (!url || url.trim() === "") {
-    alert("Download link is currently unavailable or has been redirected.");
+    alert("This link is unavailable or has been redirected.");
     return;
   }
   navigator.clipboard.writeText(url);
