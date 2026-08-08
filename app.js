@@ -74,17 +74,17 @@ function getDefaultDownloadPages(movieUrl) {
 
   return [
     {
-      label: "⚡ Final Download Server Page (720p HD)",
+      label: "⚡ Download Server Page (720p HD)",
       url: `https://moviesdatamil.net/${slug}-720p-hd-movie/`,
       stream_url: movieUrl
     },
     {
-      label: "⚡ Final Download Server Page (1080p Full HD)",
+      label: "⚡ Download Server Page (1080p Full HD)",
       url: `https://moviesdatamil.net/${slug}-1080p-hd-movie/`,
       stream_url: movieUrl
     },
     {
-      label: "⚡ Final Download Server Page (360p Mobile)",
+      label: "⚡ Download Server Page (360p Mobile)",
       url: `https://moviesdatamil.net/${slug}-360p-hd-movie/`,
       stream_url: movieUrl
     }
@@ -127,10 +127,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ movies.downloadpage.xyz Server</span>
+          <span>⚡ Isaimini Server Links</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download & Details
+          ⬇️ Download Movie
         </button>
       </div>
     `;
@@ -192,7 +192,7 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS MODAL WITH movies.downloadpage.xyz FINAL DOWNLOAD SERVER LINKS
+// MOVIE DETAILS MODAL WITH CLEAR STEP-BY-STEP DOWNLOAD GUIDE
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -224,17 +224,23 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini / movies.downloadpage.xyz Server</span>
+        <span class="modal-badge">⚡ Isaimini Real Download Servers</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Tap ⬇️ to open the <strong>movies.downloadpage.xyz</strong> final server download selection page, then tap Download Server 1/2 to save the movie!
-      </p>
+      <!-- STEP-BY-STEP DOWNLOAD GUIDE -->
+      <div style="background: rgba(255, 183, 3, 0.1); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #ffea9f;">
+        <strong>📌 How to Download File:</strong>
+        <ol style="margin-left: 20px; margin-top: 6px; line-height: 1.5;">
+          <li>Tap <strong>⬇️ Download Server Page</strong> below.</li>
+          <li>On the server page, tap <strong>Download Server 1</strong> or <strong>Download Server 2</strong>.</li>
+          <li>Your browser / 1DM / ADM will save the <code>.mp4</code> movie file directly!</li>
+        </ol>
+      </div>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Final Download Server Links
+          ⬇️ Direct Download Server Options
         </div>
         <div class="download-links-list">
           ${linksHtml}
