@@ -1,4 +1,4 @@
-// CineTamil Movie App - Main Application Logic
+// CineTamil Movie App - Quality Selection & Download Engine
 const CATEGORIES = [
   { id: "tamil-2026", label: "2026 Movies", path: "/tamil-2026-movies/" },
   { id: "tamil-2025", label: "2025 Movies", path: "/tamil-2025-movies/" },
@@ -14,6 +14,9 @@ const CATEGORIES = [
 
 let currentCategory = "tamil-2025";
 let debounceTimer = null;
+
+let currentMovieObject = null;
+let currentSelectedQuality = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   renderCategoryPills();
@@ -113,7 +116,7 @@ function renderMoviesGrid(movies) {
           <span>${m.quality || "HD Rip"}</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download Links
+          ⬇ Select Quality
         </button>
       </div>
     `;
@@ -183,109 +186,141 @@ function performSearch(query) {
   }
 }
 
-// DIRECT DOWNLOAD BUTTON CLICK HANDLER
-function handleDownloadClick(event, downloadUrl, movieTitle) {
-  if (event) event.preventDefault();
+// QUALITY SELECTION HANDLER
+function selectQuality(quality) {
+  if (!currentMovieObject || !currentMovieObject.downloads) return;
 
-  console.log("------------------------------------------");
-  console.log("[CineTamil Debug] Executing handleDownloadClick");
-  console.log("Movie:", movieTitle);
-  console.log("Button URL:", downloadUrl);
+  const downloadInfo = currentMovieObject.downloads[quality];
+  const errorBox = document.getElementById("downloadModalErrorNotice");
 
-  const statusNotice = document.getElementById("downloadStatusNotice");
-
-  // Validate that downloadUrl is non-empty and not pointing to default homepage
-  if (!downloadUrl || downloadUrl.trim() === "" || downloadUrl === "#" || downloadUrl === "https://moviesdatamil.net/" || downloadUrl === "https://moviesdatamil.net") {
-    console.warn("[CineTamil Debug] Error: downloadUrl is missing or points to homepage:", downloadUrl);
-    if (statusNotice) {
-      statusNotice.style.display = "block";
-      statusNotice.innerHTML = "⚠️ <strong>Notice:</strong> This link is unavailable or has been redirected.";
-    } else {
-      alert("This link is unavailable or has been redirected.");
-    }
+  if (!downloadInfo || !downloadInfo.url) {
+    showDownloadError(`${quality} download is currently unavailable.`);
     return;
   }
 
-  if (statusNotice) {
-    statusNotice.style.display = "none";
-  }
+  if (errorBox) errorBox.style.display = "none";
+  currentSelectedQuality = quality;
 
-  // Log final URL immediately before opening link
-  console.log("[CineTamil Debug] Opening final URL immediately before navigation:", downloadUrl);
-  console.log("------------------------------------------");
+  // Update active pill UI
+  document.querySelectorAll(".quality-pill-btn").forEach(btn => {
+    const isSelected = btn.dataset.quality === quality;
+    btn.classList.toggle("active", isSelected);
+  });
 
-  try {
-    const win = window.open(downloadUrl, "_blank");
-    if (!win) {
-      window.location.href = downloadUrl;
-    }
-  } catch (err) {
-    console.error("[CineTamil Debug] Navigation failed:", err);
-    if (statusNotice) {
-      statusNotice.style.display = "block";
-      statusNotice.innerHTML = "⚠️ <strong>Notice:</strong> This link is unavailable or has been redirected.";
-    }
+  // Update selected quality text & file size
+  const labelEl = document.getElementById("selectedQualityLabel");
+  const sizeEl = document.getElementById("selectedQualitySize");
+  const mainBtnEl = document.getElementById("mainDownloadActionBtn");
+
+  if (labelEl) labelEl.innerText = quality;
+  if (sizeEl) sizeEl.innerText = downloadInfo.size || "Unknown Size";
+  if (mainBtnEl) {
+    mainBtnEl.innerText = `⬇ Download ${quality}`;
+    mainBtnEl.disabled = false;
   }
 }
 
-// OPEN MOVIE DETAILS MODAL
+// DOWNLOAD MOVIE DIRECT HANDLER
+function downloadMovie(movie, quality) {
+  const download = movie?.downloads?.[quality];
+
+  if (!download || !download.url || download.url.trim() === "" || download.url === "#") {
+    showDownloadError(`${quality} download is currently unavailable.`);
+    return;
+  }
+
+  console.log("==========================================");
+  console.log("Movie:", movie.title);
+  console.log("Selected quality:", quality);
+  console.log("Download URL:", download.url);
+  console.log("==========================================");
+
+  // Send browser directly to URL so browser/download manager can handle it
+  window.location.href = download.url;
+}
+
+// SHOW DOWNLOAD ERROR NOTIFICATION
+function showDownloadError(message) {
+  const errorBox = document.getElementById("downloadModalErrorNotice");
+  if (errorBox) {
+    errorBox.style.display = "block";
+    errorBox.innerHTML = `⚠️ <strong>Notice:</strong> ${message}`;
+  } else {
+    alert(message);
+  }
+}
+
+// OPEN MOVIE DETAILS MODAL WITH DYNAMIC QUALITY SELECTION
 function openMovieDetails(movie) {
+  currentMovieObject = movie;
+  currentSelectedQuality = null;
+
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
 
-  // Preserve exact URL from data object without modifications
-  const downloadUrl = movie.downloadUrl || movie.url || "";
   const title = movie.title || "Movie Details";
-  const quality = movie.quality || "HD Rip";
+  const year = movie.year || "";
+  const pageUrl = movie.moviePageUrl || "#";
 
-  // Step-by-Step Debug Logging
-  console.log("==========================================");
-  console.log("Movie:", movie.title);
-  console.log("Data URL:", movie.downloadUrl || movie.url);
-  console.log("Button URL:", downloadUrl);
-  console.log("==========================================");
+  // Filter available qualities that actually exist in data
+  const downloadsObj = movie.downloads || {};
+  const availableQualities = Object.keys(downloadsObj).filter(q => downloadsObj[q] && downloadsObj[q].url);
+
+  console.log("[CineTamil Modal] Opening movie:", title);
+  console.log("[CineTamil Modal] Available qualities:", availableQualities);
+
+  const pillsHtml = availableQualities.map(q => `
+    <button data-quality="${q}" onclick="selectQuality('${q}')" class="quality-pill-btn">
+      ${q}
+    </button>
+  `).join("");
 
   content.innerHTML = `
     <div>
       <h2 class="modal-title">${title}</h2>
       
-      <div style="margin-bottom: 15px;">
-        <span class="modal-badge">🎬 ${quality}</span>
-        <span class="modal-badge">Year: ${movie.year || "N/A"}</span>
+      <div style="margin-bottom: 15px; display: flex; gap: 8px; flex-wrap: wrap;">
+        <span class="modal-badge">Year: ${year || "N/A"}</span>
+        <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Click the download button below to access the project's movie URL directly.
-      </p>
-
-      <!-- Error / Status Notice Container -->
-      <div id="downloadStatusNotice" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #fca5a5;">
+      <!-- Optional Movie Information Page Link -->
+      <div style="margin-bottom: 15px; font-size: 0.85rem;">
+        <a href="${pageUrl}" target="_blank" rel="noreferrer noopener" style="color: var(--text-secondary); text-decoration: underline;">
+          🌐 View Movie Info Page
+        </a>
       </div>
 
-      <div class="download-box">
-        <div class="download-title">
-          ⬇️ Movie Download Link
+      <!-- Error Notice Container -->
+      <div id="downloadModalErrorNotice" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #fca5a5;">
+      </div>
+
+      <!-- Quality Selection UI Container -->
+      <div class="quality-selection-box">
+        <div class="quality-selection-title">Select Quality</div>
+        
+        <div class="quality-pills-row">
+          ${availableQualities.length > 0 ? pillsHtml : `<span style="color: var(--text-secondary); font-size: 0.85rem;">No download qualities available for this movie.</span>`}
         </div>
 
-        <div class="download-links-list">
-          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-            <button onclick="handleDownloadClick(event, '${downloadUrl}', '${title.replace(/'/g, "\\'")}')" class="inpage-download-btn" style="flex: 1;">
-              <div>
-                <span style="margin-right: 8px;">⬇️</span>
-                <strong>Open Movie Page (${quality})</strong>
-              </div>
-              <span class="download-tag">Open Link</span>
-            </button>
-            <button onclick="copyToClipboard('${downloadUrl}')" title="Copy Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
-              📋
-            </button>
-          </div>
+        <div class="quality-details-info">
+          <div>Selected: <strong id="selectedQualityLabel">--</strong></div>
+          <div>Size: <strong id="selectedQualitySize">--</strong></div>
         </div>
+
+        <button id="mainDownloadActionBtn" onclick="downloadMovie(currentMovieObject, currentSelectedQuality)" class="main-download-btn" disabled>
+          ⬇ Download Movie
+        </button>
       </div>
     </div>
   `;
 
   if (modal) modal.classList.add("active");
+
+  // Auto-select first available quality
+  if (availableQualities.length > 0) {
+    selectQuality(availableQualities[0]);
+  }
 }
 
 // CLOSE MODAL
@@ -294,20 +329,8 @@ function closeModal() {
   if (modal) modal.classList.remove("active");
 }
 
-// COPY TO CLIPBOARD
-function copyToClipboard(url) {
-  console.log("[CineTamil Copy] Copying URL:", url);
-  if (!url || url.trim() === "") {
-    alert("This link is unavailable or has been redirected.");
-    return;
-  }
-  navigator.clipboard.writeText(url);
-  alert("Copied URL to clipboard:\n" + url);
-}
-
 // CLEAR CACHE AND RELOAD
 function clearCacheAndReload() {
-  console.log("[CineTamil Cache] Clearing browser cache & reloading...");
   if (window.caches) {
     caches.keys().then(names => {
       names.forEach(name => caches.delete(name));
