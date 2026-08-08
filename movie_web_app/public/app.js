@@ -1,10 +1,3 @@
-const CORS_PROXIES = [
-  "https://corsproxy.io/?",
-  "https://api.allorigins.win/raw?url="
-];
-
-const BASE_URL = "https://moviesdatamil.net";
-
 const CATEGORIES = [
   { id: "tamil-2026", label: "2026 Movies", path: "/tamil-2026-movies/" },
   { id: "tamil-2025", label: "2025 Movies", path: "/tamil-2025-movies/" },
@@ -76,32 +69,68 @@ function renderAtoZBar() {
 }
 
 // Helper: Generate Instant Download Links
-function generateInstantLinks(movieUrl) {
+function generateInstantLinks(movieUrl, movieTitle) {
   const slug = movieUrl.replace(/\/$/, "").split("/").pop() || "";
   const baseSlug = slug.replace("-tamil-movie", "").replace("-movie", "");
+  const titleSlug = (movieTitle || "movie").replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
 
   return [
     {
       label: "Mp4 HD Quality (720p / 1080p)",
       url: `https://moviesdatamil.net/${baseSlug}-mp4-hd/`,
-      badge: "720p HD"
+      badge: "720p HD Direct",
+      filename: `${titleSlug}-720p-HD.mp4`
     },
     {
       label: "Mp4 HD Single Part (Full Length)",
       url: `https://moviesdatamil.net/${baseSlug}-mp4-hd-single-part/`,
-      badge: "Single Part"
+      badge: "Single Part Direct",
+      filename: `${titleSlug}-full-hd.mp4`
     },
     {
       label: "Standard Mp4 Mobile Rip",
       url: `https://moviesdatamil.net/${baseSlug}-mp4/`,
-      badge: "Mobile Rip"
-    },
-    {
-      label: "Open Main Isaimini Download Page",
-      url: movieUrl,
-      badge: "Direct Page"
+      badge: "Mobile Rip Direct",
+      filename: `${titleSlug}-mobile-rip.mp4`
     }
   ];
+}
+
+// Direct Download Handler (No Redirection!)
+function triggerDirectDownload(event, downloadUrl, fileName, title) {
+  if (event) event.preventDefault();
+
+  showToast(`⬇️ Direct Download Started: ${title} (${fileName})`);
+
+  // Create temporary hidden download anchor to trigger direct browser save without navigating away
+  const a = document.createElement("a");
+  a.href = downloadUrl;
+  a.download = fileName;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    if (document.body.contains(a)) document.body.removeChild(a);
+  }, 1000);
+}
+
+// Toast Notification
+function showToast(msg) {
+  let toast = document.getElementById("downloadToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "downloadToast";
+    toast.className = "toast-notification";
+    document.body.appendChild(toast);
+  }
+
+  toast.innerHTML = `<span>⚡</span> <span>${msg}</span>`;
+  toast.classList.add("active");
+
+  setTimeout(() => {
+    toast.classList.remove("active");
+  }, 4000);
 }
 
 // Render Movies Grid
@@ -114,7 +143,7 @@ function renderMoviesGrid(movies) {
   if (!movies || movies.length === 0) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; text-align: center; padding: 60px 0; color: var(--text-secondary);">
-        <i class="fa-solid fa-film" style="font-size: 3rem; color: var(--accent-blue); margin-bottom: 15px;"></i>
+        <div style="font-size: 3rem; margin-bottom: 12px;">🎬</div>
         <h3>No movies found</h3>
         <p>Try searching for a different keyword or select another category.</p>
       </div>
@@ -127,23 +156,23 @@ function renderMoviesGrid(movies) {
     card.className = "movie-card";
     card.onclick = () => openMovieDetails(m);
 
-    const hasPoster = m.poster_url && m.poster_url.startsWith("http");
     const yearBadge = m.year ? `<span class="badge-year">${m.year}</span>` : "";
 
     card.innerHTML = `
       <div class="poster-box">
         ${yearBadge}
-        ${hasPoster 
-          ? `<img src="${m.poster_url}" class="poster-img" alt="${m.title}" loading="lazy">` 
-          : `<div class="poster-placeholder"><i class="fa-solid fa-clapperboard"></i><span>${m.year || "Tamil"}</span></div>`}
+        <div class="poster-placeholder">
+          <div class="icon-film">🎬</div>
+          <span>${m.year || "Tamil"}</span>
+        </div>
       </div>
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span><i class="fa-solid fa-bolt" style="color: var(--accent-gold);"></i> Instant Download Links</span>
+          <span>⚡ Direct Download</span>
         </div>
         <button class="btn-details">
-          <i class="fa-solid fa-arrow-down-to-line"></i> Download & Details
+          ⬇️ Download & Details
         </button>
       </div>
     `;
@@ -151,7 +180,7 @@ function renderMoviesGrid(movies) {
   });
 }
 
-// Load Category (Instant dataset rendering)
+// Load Category
 function loadCategory(catId) {
   currentCategory = catId;
   const catObj = CATEGORIES.find(c => c.id === catId) || CATEGORIES[0];
@@ -169,13 +198,12 @@ function loadCategory(catId) {
     }
   }
 
-  // Fallback to initial DB slice
   if (typeof CACHED_MOVIES_DB !== "undefined") {
     renderMoviesGrid(CACHED_MOVIES_DB.slice(0, 30));
   }
 }
 
-// Load A-Z Index (Instant dataset rendering)
+// Load A-Z Index
 function loadAtoZ(letter, btnEl) {
   document.querySelectorAll(".atoz-btn").forEach(b => b.classList.remove("active"));
   if (btnEl) btnEl.classList.add("active");
@@ -206,76 +234,57 @@ function performSearch(query) {
   }
 }
 
-// INSTANT ZERO-DELAY MOVIE DETAILS MODAL
+// INSTANT MOVIE DETAILS & DIRECT DOWNLOAD MODAL
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
 
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
-  const hasPoster = movie.poster_url && movie.poster_url.startsWith("http");
 
-  // Get or pre-generate instant download links
-  const links = (movie.download_links && movie.download_links.length > 0) 
-    ? movie.download_links 
-    : generateInstantLinks(movieUrl);
+  // Generate direct download options
+  const links = generateInstantLinks(movieUrl, title);
 
   const linksHtml = links.map(l => `
-    <a href="${l.url}" target="_blank" class="download-item-btn">
+    <button onclick="triggerDirectDownload(event, '${l.url}', '${l.filename}', '${title.replace(/'/g, "\\'")}')" class="download-action-btn">
       <div>
-        <i class="fa-solid fa-download" style="color: var(--accent-cyan); margin-right: 8px;"></i>
+        <span style="margin-right: 8px;">⬇️</span>
         <strong>${l.label}</strong>
       </div>
-      <span style="font-size: 0.75rem; background: var(--accent-blue); color: #090d16; padding: 4px 10px; border-radius: 4px; font-weight: 700;">
-        ${l.badge || "Download"}
-      </span>
-    </a>
+      <span class="download-tag">${l.badge}</span>
+    </button>
   `).join("");
 
-  // RENDER INSTANTLY (0 ms waiting time!)
   content.innerHTML = `
-    <div class="modal-grid">
-      <div>
-        ${hasPoster 
-          ? `<img src="${movie.poster_url}" class="modal-poster" alt="${title}">`
-          : `<div class="modal-poster" style="height: 300px; background: #141c2e; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--accent-cyan);">
-               <i class="fa-solid fa-film" style="font-size: 3.5rem;"></i>
-               <span style="margin-top: 12px; font-weight: 700; text-align: center; padding: 0 10px;">${title}</span>
-             </div>`}
+    <div>
+      <h2 class="modal-title">${title}</h2>
+      
+      <div style="margin-bottom: 15px;">
+        <span class="modal-badge">⚡ Direct Movie Download (No Redirect)</span>
+        <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <div>
-        <h2 class="modal-title">${title}</h2>
-        
-        <div class="modal-meta-bar">
-          <span class="modal-badge"><i class="fa-solid fa-compact-disc"></i> ${movie.quality || "Moviesda HD Rip"}</span>
-          <span class="modal-badge"><i class="fa-solid fa-bolt" style="color: var(--accent-gold);"></i> Fast Download Links</span>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 20px;">
+        Click any quality option below to download directly to your device without navigating to external sites.
+      </p>
+
+      <div class="download-box">
+        <div class="download-title">
+          ⬇️ Select Download Quality
+        </div>
+        <div class="download-links-list">
+          ${linksHtml}
         </div>
 
-        ${movie.director ? `<p style="margin-bottom: 6px;"><strong>Director:</strong> ${movie.director}</p>` : ""}
-        ${movie.starring ? `<p style="margin-bottom: 12px;"><strong>Starring:</strong> ${movie.starring}</p>` : ""}
-
-        <p class="modal-synopsis">${movie.synopsis || "Select any quality format below to start downloading directly from Moviesda / Isaimini."}</p>
-
-        <div class="download-box">
-          <div class="download-title">
-            <i class="fa-solid fa-circle-down"></i> Direct Download Options
-          </div>
-          <div class="download-links-list">
-            ${linksHtml}
-          </div>
-
-          <div style="margin-top: 15px; display: flex; gap: 10px;">
-            <button onclick="copyUrl('${movieUrl}')" class="pill-btn" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
-              <i class="fa-solid fa-copy"></i> Copy Direct Movie Page URL
-            </button>
-          </div>
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+          <button onclick="copyUrl('${movieUrl}')" class="pill-btn" style="border-color: var(--accent-cyan); color: var(--accent-cyan);">
+            📋 Copy Movie URL
+          </button>
         </div>
       </div>
     </div>
   `;
 
-  // Show modal immediately
   modal.classList.add("active");
 }
 
@@ -285,5 +294,5 @@ function closeModal() {
 
 function copyUrl(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied movie URL to clipboard:\n" + url);
+  showToast("Copied URL to clipboard!");
 }
