@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineTamil - Movie Search & Downloader Portal</title>
+  <meta name="description" content="Search Tamil movies, Baahubali 2015 showcase, Tamil dubbed, HD movies, and download links.">
+  <link rel="stylesheet" href="movie_web_app/public/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-row">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-clapperboard"></i>
+        </div>
+        <div>
+          <div class="brand-title">CINE TAMIL</div>
+          <div class="brand-subtitle">Moviesda & Isaimini Search Engine</div>
+        </div>
+      </a>
+
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <a href="baahubali-app/index.html" class="pill-btn active" style="text-decoration: none;">
+          <i class="fa-solid fa-crown" style="color: var(--accent-gold);"></i> Baahubali Showcase
+        </a>
+        <a href="https://github.com/janam9097-arch/cinetamil-movie-app" target="_blank" class="pill-btn" style="text-decoration: none;">
+          <i class="fa-brands fa-github"></i> GitHub Repo
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="container hero">
+    <h1 class="hero-heading">Find & Download <span>Tamil Movies</span></h1>
+    <p class="hero-subtitle">Search Tamil blockbusters, Baahubali (2015), 2026-2015 movies, and direct download links.</p>
+
+    <!-- Search Input -->
+    <div class="search-form" style="margin: 0 auto 30px; max-width: 650px;">
+      <div class="search-input-wrapper">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search movies (e.g. Baahubali, Leo, Vikram, DC)..." value="Baahubali">
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Container -->
+  <main class="container">
+    <!-- Featured Baahubali Spotlight Banner -->
+    <div style="background: linear-gradient(135deg, rgba(22, 14, 9, 0.9), rgba(36, 22, 14, 0.9)); border: 2px solid var(--accent-gold); border-radius: 16px; padding: 25px; margin-bottom: 40px; box-shadow: 0 10px 30px rgba(255, 183, 3, 0.15); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px;">
+      <div>
+        <span style="color: var(--accent-gold); font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Featured Masterpiece</span>
+        <h2 style="font-family: var(--font-heading); color: #fff; font-size: 1.8rem; margin: 4px 0;">Baahubali: The Beginning (2015)</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">S. S. Rajamouli &bull; Prabhas, Rana Daggubati &bull; IMDb 8.0/10 &bull; ₹650 Cr Box Office</p>
+      </div>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="https://moviesdatamil.net/baahubali-2015-tamil-movie/" target="_blank" class="btn-details" style="background: linear-gradient(135deg, var(--accent-gold), #b8860b); color: #090d16; border: none; text-decoration: none; padding: 12px 20px;">
+          <i class="fa-solid fa-link"></i> Direct Isaimini Link
+        </a>
+        <a href="baahubali-app/index.html" class="btn-details" style="text-decoration: none; padding: 12px 20px;">
+          <i class="fa-solid fa-crown"></i> Interactive Portal
+        </a>
+      </div>
+    </div>
+
+    <!-- Results Header -->
+    <div class="results-header">
+      <div>
+        <h2 id="sectionTitle" class="results-title">Movie Catalog & Search Results</h2>
+        <p style="color: var(--text-secondary); font-size: 0.88rem;">Showing active download links & details</p>
+      </div>
+      <div id="resultCount" style="color: var(--accent-cyan); font-weight: 700;"></div>
+    </div>
+
+    <!-- Movies Grid -->
+    <div id="moviesContainer" class="movies-grid">
+      <!-- Cards rendered via JS -->
+    </div>
+  </main>
+
+  <!-- Modal Details Overlay -->
+  <div id="movieModal" class="modal-overlay" onclick="if(event.target.id==='movieModal') closeModal();">
+    <div class="modal-box">
+      <button class="modal-close-btn" onclick="closeModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>CineTamil Movie Portal &bull; Hosted on GitHub Pages</p>
+      <p style="margin-top: 5px; opacity: 0.7;">Repository: <a href="https://github.com/janam9097-arch/cinetamil-movie-app" target="_blank" style="color: var(--accent-cyan);">janam9097-arch/cinetamil-movie-app</a></p>
+    </div>
+  </footer>
+
+  <script>
+    // Client-side dataset for GitHub Pages compatibility
+    const moviesDataset = [
+      {
+        title: "Baahubali: The Beginning (2015)",
+        year: "2015",
+        quality: "DVDRip / HD 720p",
+        director: "S. S. Rajamouli",
+        starring: "Prabhas, Rana Daggubati, Anushka Shetty, Tamannaah, Ramya Krishnan, Sathyaraj, Nassar",
+        rating: "8.0/10 IMDb",
+        synopsis: "In the ancient kingdom of Mahishmati, Shivudu, an adventurous young man raised in a remote village, falls in love with a rebellious warrior named Avanthika. While assisting her mission to free Queen Devasena, he discovers his legendary identity as Amarendra Baahubali's son and heir to the Mahishmati throne.",
+        url: "https://moviesdatamil.net/baahubali-2015-tamil-movie/",
+        poster_url: "baahubali-app/assets/hero_poster.png",
+        links: [
+          { label: "Mp4 HD Quality (720p)", url: "https://moviesdatamil.net/baahubali-2015-mp4-hd/" },
+          { label: "Mp4 HD Single Part (Full Length)", url: "https://moviesdatamil.net/baahubali-2015-mp4-hd-single-part/" },
+          { label: "Standard Mobile Mp4 Rip", url: "https://moviesdatamil.net/baahubali-2015-mp4/" }
+        ]
+      },
+      {
+        title: "Baahubali 2: The Conclusion (2017)",
+        year: "2017",
+        quality: "HD 1080p",
+        director: "S. S. Rajamouli",
+        starring: "Prabhas, Rana Daggubati, Anushka Shetty, Sathyaraj",
+        rating: "8.2/10 IMDb",
+        synopsis: "When Shiva, the son of Baahubali, learns about his heritage, he begins to search for answers. His story is juxtaposed with past events that unfolded in the Mahishmati Kingdom.",
+        url: "https://moviesdatamil.net/baahubali-2-the-conclusion-2017-tamil-dubbed-movie/",
+        poster_url: "baahubali-app/assets/mahishmati_palace.png",
+        links: [
+          { label: "Mp4 HD 1080p Download", url: "https://moviesdatamil.net/baahubali-2-the-conclusion-2017-tamil-dubbed-movie/" }
+        ]
+      },
+      {
+        title: "Vikram (2022)",
+        year: "2022",
+        quality: "HD Real 720p",
+        director: "Lokesh Kanagaraj",
+        starring: "Kamal Haasan, Vijay Sethupathi, Fahadh Faasil, Suriya",
+        rating: "8.3/10 IMDb",
+        synopsis: "A high-octane action thriller following a special ops officer investigating a masked vigilante group.",
+        url: "https://moviesdatamil.net/vikram-2022-tamil-movie/",
+        poster_url: "",
+        links: [
+          { label: "Mp4 HD Download", url: "https://moviesdatamil.net/vikram-2022-tamil-movie/" }
+        ]
+      },
+      {
+        title: "Leo (2023)",
+        year: "2023",
+        quality: "HD Real 1080p",
+        director: "Lokesh Kanagaraj",
+        starring: "Vijay, Trisha Krishnan, Sanjay Dutt, Arjun Sarja",
+        rating: "7.8/10 IMDb",
+        synopsis: "A mild-mannered café owner becomes a local hero through an act of violence, triggering repercussions from a dangerous drug cartel.",
+        url: "https://moviesdatamil.net/leo-2023-tamil-movie/",
+        poster_url: "",
+        links: [
+          { label: "Mp4 HD Single Part", url: "https://moviesdatamil.net/leo-2023-tamil-movie/" }
+        ]
+      },
+      {
+        title: "DC (2026)",
+        year: "2026",
+        quality: "HD Original",
+        director: "Tamil Cinema 2026",
+        starring: "Latest Star Cast",
+        rating: "Upcoming",
+        synopsis: "Latest 2026 Tamil release indexed on Moviesda.",
+        url: "https://moviesdatamil.net/dc-2026-tamil-movie/",
+        poster_url: "",
+        links: [
+          { label: "Official Isaimini Download Page", url: "https://moviesdatamil.net/dc-2026-tamil-movie/" }
+        ]
+      }
+    ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderMovies(moviesDataset);
+
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        const q = e.target.value.toLowerCase().trim();
+        const filtered = moviesDataset.filter(m => 
+          m.title.toLowerCase().includes(q) || 
+          m.starring.toLowerCase().includes(q) || 
+          m.director.toLowerCase().includes(q)
+        );
+        renderMovies(filtered);
+      });
+    });
+
+    function renderMovies(list) {
+      const container = document.getElementById('moviesContainer');
+      const count = document.getElementById('resultCount');
+      container.innerHTML = '';
+      count.innerText = `${list.length} Movie(s)`;
+
+      if (list.length === 0) {
+        container.innerHTML = `<p style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-secondary);">No matching movies found.</p>`;
+        return;
+      }
+
+      list.forEach((m, idx) => {
+        const card = document.createElement('div');
+        card.className = 'movie-card';
+        card.onclick = () => openModal(idx);
+
+        card.innerHTML = `
+          <div class="poster-box">
+            <span class="badge-year">${m.year}</span>
+            ${m.poster_url 
+              ? `<img src="${m.poster_url}" class="poster-img" alt="${m.title}">` 
+              : `<div class="poster-placeholder"><i class="fa-solid fa-clapperboard"></i><span>${m.year}</span></div>`}
+          </div>
+          <div class="card-body">
+            <h3 class="card-title">${m.title}</h3>
+            <div class="card-meta"><span><i class="fa-solid fa-star" style="color:var(--accent-gold)"></i> ${m.rating}</span></div>
+            <button class="btn-details"><i class="fa-solid fa-link"></i> Download & Details</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function openModal(idx) {
+      const m = moviesDataset[idx];
+      const modal = document.getElementById('movieModal');
+      const content = document.getElementById('modalContent');
+
+      modal.classList.add('active');
+
+      const linksHtml = m.links.map(l => `
+        <a href="${l.url}" target="_blank" class="download-item-btn">
+          <div><i class="fa-solid fa-download" style="color: var(--accent-cyan); margin-right: 8px;"></i> ${l.label}</div>
+          <span style="font-size: 0.75rem; background: var(--accent-blue); color: #090d16; padding: 2px 8px; border-radius: 4px;">Download</span>
+        </a>
+      `).join('');
+
+      content.innerHTML = `
+        <div class="modal-grid">
+          <div>
+            ${m.poster_url 
+              ? `<img src="${m.poster_url}" class="modal-poster" alt="${m.title}">`
+              : `<div class="modal-poster" style="height: 300px; background: #182238; display: flex; align-items: center; justify-content: center; color: var(--accent-cyan); font-size: 3rem;"><i class="fa-solid fa-film"></i></div>`}
+          </div>
+          <div>
+            <h2 class="modal-title">${m.title}</h2>
+            <div class="modal-meta-bar">
+              <span class="modal-badge"><i class="fa-solid fa-star" style="color:var(--accent-gold)"></i> ${m.rating}</span>
+              <span class="modal-badge"><i class="fa-solid fa-compact-disc"></i> ${m.quality}</span>
+            </div>
+            <p style="margin-bottom: 6px;"><strong>Director:</strong> ${m.director}</p>
+            <p style="margin-bottom: 12px;"><strong>Starring:</strong> ${m.starring}</p>
+            <p class="modal-synopsis">${m.synopsis}</p>
+            <div class="download-box">
+              <div class="download-title"><i class="fa-solid fa-circle-down"></i> Direct Isaimini Links</div>
+              <div class="download-links-list">${linksHtml}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeModal() {
+      document.getElementById('movieModal').classList.remove('active');
+    }
+  </script>
+</body>
+</html>
