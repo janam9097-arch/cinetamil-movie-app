@@ -68,15 +68,42 @@ function renderAtoZBar() {
   });
 }
 
-// Helper: Build Real Verified Download Links
-function getRealLinks(movieUrl) {
-  const slug = movieUrl.replace(/\/$/, "").split("/").pop().replace("-tamil-movie", "").replace("-movie", "");
+// Helper: Build cdn.uptomkv.ch direct links dynamically
+function buildUptomkvLinks(movieTitle, year, movieUrl) {
+  const cleanTitle = (movieTitle || "Movie").replace(/[():]/g, "").trim();
+  const y = year || "2025";
+
+  function encodePayload(resTag) {
+    const path = `Tamil ${y} Movies/${cleanTitle} (${y})/${cleanTitle} (Original)/${cleanTitle} (${resTag})/Moviesda.Mobi - ${cleanTitle} ${y} Original ${resTag}.mp4`;
+    const params = `server=mv1&hash=e3270fd43cd21af26faa107b5802efa5&exp=1786218650&path=${path}`;
+    try {
+      return "https://cdn.uptomkv.ch/download.php?dl=" + btoa(unescape(encodeURIComponent(params)));
+    } catch (e) {
+      return movieUrl;
+    }
+  }
 
   return [
-    { label: "⚡ 720p HD Movie Direct Link", url: `https://moviesdatamil.net/${slug}-720p-hd-movie/` },
-    { label: "⚡ 1080p Full HD Movie Direct Link", url: `https://moviesdatamil.net/${slug}-1080p-hd-movie/` },
-    { label: "⚡ 360p Mobile Movie Direct Link", url: `https://moviesdatamil.net/${slug}-360p-hd-movie/` },
-    { label: "🌐 Main Isaimini Download Page", url: movieUrl }
+    {
+      label: "⚡ Direct MP4 File Download (720p HD)",
+      url: encodePayload("720p HD"),
+      badge: "720p Direct MP4"
+    },
+    {
+      label: "⚡ Direct MP4 File Download (1080p Full HD)",
+      url: encodePayload("1080p HD"),
+      badge: "1080p Direct MP4"
+    },
+    {
+      label: "⚡ Direct MP4 File Download (360p Mobile)",
+      url: encodePayload("360p HD"),
+      badge: "360p Direct MP4"
+    },
+    {
+      label: "🌐 Main Isaimini Download Page",
+      url: movieUrl,
+      badge: "Page Link"
+    }
   ];
 }
 
@@ -116,10 +143,10 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ Isaimini Verified Download</span>
+          <span>⚡ cdn.uptomkv.ch Direct Stream</span>
         </div>
         <button class="btn-details">
-          ⬇️ Download & Details
+          ⬇️ Direct MP4 File
         </button>
       </div>
     `;
@@ -181,17 +208,18 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS MODAL WITH VERIFIED WORKING LINKS
+// MOVIE DETAILS MODAL WITH cdn.uptomkv.ch DIRECT MP4 FILE SERVERS
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
 
   const movieUrl = movie.url || "https://moviesdatamil.net/";
   const title = movie.title || "Movie Details";
+  const year = movie.year || "2025";
 
-  const links = (movie.download_links && movie.download_links.length > 0)
-    ? movie.download_links
-    : getRealLinks(movieUrl);
+  const links = (movie.uptomkv_links && movie.uptomkv_links.length > 0)
+    ? movie.uptomkv_links
+    : buildUptomkvLinks(title, year, movieUrl);
 
   const linksHtml = links.map(item => `
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
@@ -200,9 +228,9 @@ function openMovieDetails(movie) {
           <span style="margin-right: 8px;">⬇️</span>
           <strong>${item.label}</strong>
         </div>
-        <span class="download-tag">Open Link</span>
+        <span class="download-tag">${item.badge || "Direct MP4"}</span>
       </a>
-      <button onclick="copyToClipboard('${item.url}')" title="Copy Download Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
+      <button onclick="copyToClipboard('${item.url}')" title="Copy Direct File Link" style="background: rgba(0,242,254,0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 14px 16px; border-radius: 8px; cursor: pointer; font-weight: 700;">
         📋
       </button>
     </div>
@@ -213,17 +241,17 @@ function openMovieDetails(movie) {
       <h2 class="modal-title">${title}</h2>
       
       <div style="margin-bottom: 15px;">
-        <span class="modal-badge">⚡ Isaimini Real Verified Links</span>
+        <span class="modal-badge">⚡ cdn.uptomkv.ch Direct MP4 Server</span>
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
       <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">
-        Tap ⬇️ to open the Isaimini download page directly, or tap 📋 to copy the URL for Chrome / 1DM / ADM downloaders.
+        Tap ⬇️ to download the MP4 file directly via <strong>cdn.uptomkv.ch</strong>, or tap 📋 to copy the URL for Chrome / 1DM / ADM downloaders.
       </p>
 
       <div class="download-box">
         <div class="download-title">
-          ⬇️ Available Download Links
+          ⬇️ Direct MP4 File Download Servers
         </div>
         <div class="download-links-list">
           ${linksHtml}
@@ -241,5 +269,5 @@ function closeModal() {
 
 function copyToClipboard(url) {
   navigator.clipboard.writeText(url);
-  alert("Copied direct link to clipboard:\n" + url);
+  alert("Copied direct cdn.uptomkv.ch URL to clipboard:\n" + url);
 }
