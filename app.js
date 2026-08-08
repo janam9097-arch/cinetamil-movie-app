@@ -127,7 +127,7 @@ function renderMoviesGrid(movies) {
       <div class="card-body">
         <h3 class="card-title">${m.title}</h3>
         <div class="card-meta">
-          <span>⚡ Isaimini Server Links</span>
+          <span>⚡ No-Referrer Direct Links</span>
         </div>
         <button class="btn-details">
           ⬇️ Download Movie
@@ -192,7 +192,7 @@ function performSearch(query) {
   }
 }
 
-// MOVIE DETAILS MODAL WITH CLEAR STEP-BY-STEP DOWNLOAD GUIDE
+// MOVIE DETAILS MODAL WITH NO-REFERRER DIRECT LINKS
 function openMovieDetails(movie) {
   const modal = document.getElementById("movieModal");
   const content = document.getElementById("modalContent");
@@ -206,7 +206,7 @@ function openMovieDetails(movie) {
 
   const linksHtml = pages.map(item => `
     <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-      <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
+      <a href="${item.url}" target="_blank" rel="noreferrer noopener" class="inpage-download-btn" style="flex: 1; text-decoration: none;">
         <div>
           <span style="margin-right: 8px;">⬇️</span>
           <strong>${item.label}</strong>
@@ -228,7 +228,6 @@ function openMovieDetails(movie) {
         <span class="modal-badge">${movie.quality || "HD Rip"}</span>
       </div>
 
-      <!-- STEP-BY-STEP DOWNLOAD GUIDE -->
       <div style="background: rgba(255, 183, 3, 0.1); border: 1px solid var(--accent-gold); border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.88rem; color: #ffea9f;">
         <strong>📌 How to Download File:</strong>
         <ol style="margin-left: 20px; margin-top: 6px; line-height: 1.5;">
