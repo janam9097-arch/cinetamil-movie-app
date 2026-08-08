@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CineTamil - Movie Search & Downloader Portal</title>
+  <meta name="description" content="Search Tamil movies, download HD rips, browse 2026-2015 movies, Tamil dubbed, and web series with instant links.">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-row">
+      <a href="#" class="brand" onclick="loadDefaultCategory()">
+        <div class="brand-icon">
+          <i class="fa-solid fa-clapperboard"></i>
+        </div>
+        <div>
+          <div class="brand-title">CINE TAMIL</div>
+          <div class="brand-subtitle">Moviesda & Isaimini Search</div>
+        </div>
+      </a>
+
+      <form id="searchForm" class="search-form" onsubmit="event.preventDefault(); triggerSearch();">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search any Tamil movie (e.g., Baahubali, Leo, Vikram, DC)...">
+        </div>
+      </form>
+    </div>
+  </header>
+
+  <!-- Hero & Categories -->
+  <section class="container hero">
+    <h1 class="hero-heading">Find & Download <span>Tamil Movies</span></h1>
+    <p class="hero-subtitle">Search live catalog, browse by category or starting letter, and get direct download links.</p>
+
+    <!-- Category Pills -->
+    <div id="categoryPills" class="pills-bar">
+      <!-- Category pills injected here via JS -->
+    </div>
+
+    <!-- A-Z Alphabet Index -->
+    <div id="atozBar" class="atoz-bar">
+      <!-- A-Z buttons injected via JS -->
+    </div>
+  </section>
+
+  <!-- Main Content Grid -->
+  <main class="container">
+    <div class="results-header">
+      <div>
+        <h2 id="sectionTitle" class="results-title">Trending Movies</h2>
+        <p id="sectionSubtitle" style="color: var(--text-secondary); font-size: 0.88rem;">Showing latest cached releases</p>
+      </div>
+      <div id="resultCount" style="color: var(--accent-cyan); font-weight: 700;"></div>
+    </div>
+
+    <div id="moviesContainer" class="movies-grid">
+      <!-- Movie cards injected here -->
+    </div>
+  </main>
+
+  <!-- Details Drawer / Modal -->
+  <div id="movieModal" class="modal-overlay" onclick="closeModalOnBackdrop(event)">
+    <div class="modal-box">
+      <button class="modal-close-btn" onclick="closeModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div id="modalContent">
+        <!-- Details injected here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>CineTamil Movie Search Portal &bull; Powered by Isaimini / Moviesda Engine</p>
+      <p style="margin-top: 5px; opacity: 0.7;">Instant movie search & direct download link retriever</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
