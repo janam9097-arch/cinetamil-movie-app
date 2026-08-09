@@ -334,6 +334,46 @@ async def api_resolve_download(request):
     except Exception as e:
         return JSONResponse({"download_url": url, "original_url": url, "error": str(e)})
 
+async def api_status(request):
+    try:
+        try:
+            import sync_service
+        except ImportError:
+            from movie_web_app import sync_service
+        conn = sync_service.get_db()
+        total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+        latest_log = conn.execute("SELECT * FROM sync_logs ORDER BY id DESC LIMIT 10").fetchall()
+        logs_list = [dict(l) for l in latest_log]
+        last_updated = logs_list[0]["timestamp"] if logs_list else "N/A"
+        conn.close()
+        return JSONResponse({
+            "status": "active",
+            "total_movies": total,
+            "last_updated": last_updated,
+            "recent_logs": logs_list
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+async def api_sync(request):
+    try:
+        try:
+            import sync_service
+        except ImportError:
+            from movie_web_app import sync_service
+        if request.method == "POST":
+            try:
+                body = await request.json()
+                feed_items = body.get("movies") if isinstance(body, dict) else None
+                res = sync_service.process_movie_sync(feed_items)
+            except Exception:
+                res = sync_service.process_movie_sync()
+        else:
+            res = sync_service.process_movie_sync()
+        return JSONResponse(res)
+    except Exception as e:
+        return JSONResponse({"error": str(e), "status": "ERROR"}, status_code=500)
+
 async def serve_index(request):
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     return FileResponse(os.path.join(root_dir, "index.html"))
@@ -346,6 +386,8 @@ routes = [
     Route("/api/atoz", api_atoz),
     Route("/api/details", api_details),
     Route("/api/resolve_download", api_resolve_download),
+    Route("/api/status", api_status, methods=["GET"]),
+    Route("/api/sync", api_sync, methods=["GET", "POST"]),
     Mount("/", app=StaticFiles(directory=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))), name="static")
 ]
 

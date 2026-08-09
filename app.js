@@ -21,6 +21,7 @@ let currentSelectedQuality = null;
 document.addEventListener("DOMContentLoaded", () => {
   renderCategoryPills();
   renderAtoZBar();
+  updateLastUpdatedTimestamp();
 
   const searchInput = document.getElementById("searchInput");
   if (searchInput) {
@@ -39,6 +40,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadCategory("tamil-2025");
 });
+
+function updateLastUpdatedTimestamp() {
+  const badge = document.getElementById("lastUpdatedBadge");
+  if (!badge) return;
+  if (typeof LAST_UPDATED_TIMESTAMP !== "undefined" && LAST_UPDATED_TIMESTAMP) {
+    badge.innerText = `• Last Auto-Synced: ${LAST_UPDATED_TIMESTAMP}`;
+  } else {
+    fetch("/api/status")
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.last_updated && data.last_updated !== "N/A") {
+          badge.innerText = `• Last Auto-Synced: ${data.last_updated}`;
+        }
+      })
+      .catch(() => {});
+  }
+}
 
 // Render Category Pills
 function renderCategoryPills() {
