@@ -34,14 +34,21 @@ jobs:
         run: |
           python movie_web_app/sync_service.py
 
+      - name: Resolve Intermediate URLs to Direct Download Endpoints
+        run: |
+          echo "Resolving all intermediate download page URLs to direct fastbytes.xyz endpoints..."
+          python resolve_to_direct.py
+          echo "Resolution complete."
+
       - name: Commit and Push Updated Catalog if Changed
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add movies_data.js movie_web_app/movies.db
           if git diff --staged --quiet; then
-            echo "No new movies found. Catalog is up to date."
+            echo "No changes found. Catalog is up to date."
           else
-            git commit -m "Auto-Sync: Added new movies from authorized feed [skip ci]"
+            git commit -m "Auto-Sync: Updated catalog with direct download URLs [skip ci]"
             git push origin main
           fi
+
