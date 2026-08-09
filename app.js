@@ -277,15 +277,69 @@ function selectQuality(quality) {
   }
 }
 
+// TOKEN EXPIRATION & API RESOLUTION HELPERS (Requirement 9)
+function parseExpFromUrl(url) {
+  try {
+    if (!url) return null;
+    let queryString = url;
+    if (url.includes("dl=")) {
+      const match = url.match(/dl=([A-Za-z0-9%=\-_]+)/);
+      if (match) {
+        try {
+          const decoded = atob(decodeURIComponent(match[1]));
+          queryString = decoded;
+        } catch(e) {}
+      }
+    }
+    const expMatch = queryString.match(/exp=(\d+)/);
+    if (expMatch) {
+      return parseInt(expMatch[1], 10);
+    }
+  } catch(e) {}
+  return null;
+}
+
+function isUrlExpired(url) {
+  const exp = parseExpFromUrl(url);
+  if (!exp) return false;
+  const now = Math.floor(Date.now() / 1000);
+  return now >= exp;
+}
+
+async function getValidDownloadUrl(url, moviePageUrl) {
+  if (!isUrlExpired(url)) {
+    return url;
+  }
+  console.log("[CineTamil] Token expired. Fetching fresh URL from supported backend API...");
+  try {
+    const targetUrl = url || moviePageUrl;
+    const res = await fetch(`/api/resolve?url=${encodeURIComponent(targetUrl)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.download_url) {
+        console.log("[CineTamil] Fresh URL received from API:", data.download_url);
+        return data.download_url;
+      }
+    }
+  } catch(e) {
+    console.warn("[CineTamil] Backend API resolution notice:", e);
+  }
+  return url;
+}
+
 // DOWNLOAD MOVIE HANDLER
-function downloadMovie(movie, quality) {
+async function downloadMovie(movie, quality) {
   const download = movie?.downloads?.[quality];
-  const url = download?.url || "";
+  let url = download?.url || "";
+  const moviePageUrl = movie?.moviePageUrl || "";
+
+  // Validate URL freshness and obtain a fresh token if expired
+  url = await getValidDownloadUrl(url, moviePageUrl);
   const urlType = getUrlType(url);
 
   console.log("[CineTamil] Movie:", movie?.title);
   console.log("[CineTamil] Quality:", quality);
-  console.log("[CineTamil] Stored URL:", url);
+  console.log("[CineTamil] Active URL:", url);
   console.log("[CineTamil] URL Type:", urlType);
 
   if (urlType === "unavailable" || !url) {

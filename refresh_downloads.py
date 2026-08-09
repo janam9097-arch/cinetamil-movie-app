@@ -278,17 +278,19 @@ def main():
 
     print()
     print("=== REFRESH SUMMARY ===")
-    print(f"Total movies processed : {total}")
-    print(f"Refreshed successfully : {refreshed}")
-    print(f"Could not refresh      : {failed}")
+    print(f"Total items processed    : {total}")
+    print(f"Successful refresh count : {refreshed}")
+    print(f"Failed count             : {failed}")
 
     if not args.dry_run:
         sys.path.insert(0, os.path.abspath("movie_web_app"))
         from sync_service import export_to_movies_data_js
         count, ts = export_to_movies_data_js()
-        print(f"Exported {count} movies to movies_data.js at {ts}")
+        print(f"Generated-data count     : {count} movies in movies_data.js")
+        print(f"Persistence status       : Saved to movie_web_app/movies.db & exported to movies_data.js at {ts}")
     else:
-        print("[DRY RUN] Skipped DB write and export.")
+        print(f"Generated-data count     : 0 (dry-run)")
+        print(f"Persistence status       : Skipped DB write and export (dry-run)")
 
 
 if __name__ == "__main__":
