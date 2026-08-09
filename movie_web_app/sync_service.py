@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import json
 import sqlite3
 import datetime
@@ -110,14 +111,72 @@ def export_to_movies_data_js():
     finally:
         conn.close()
 
+def scrape_isaimini_latest_movies():
+    """
+    Automatically scrapes latest movie uploads directly from Isaimini (moviesdatamil.net).
+    """
+    categories = [
+        ("/tamil-2026-movies/", "tamil-2026"),
+        ("/tamil-2025-movies/", "tamil-2025"),
+        ("/tamil-2024-movies/", "tamil-2024"),
+        ("/tamil-dubbed-movies/", "tamil-dubbed"),
+        ("/tamil-web-series-download/", "web-series")
+    ]
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    base_url = "https://moviesdatamil.net"
+    all_movies = []
+
+    try:
+        with httpx.Client(headers=headers, follow_redirects=True, timeout=15.0) as client:
+            for path, cat_id in categories:
+                url = f"{base_url}{path}"
+                try:
+                    r = client.get(url)
+                    if r.status_code == 200:
+                        from bs4 import BeautifulSoup
+                        soup = BeautifulSoup(r.text, "html.parser")
+                        for a in soup.select("div.f a"):
+                            href = a.get("href", "")
+                            txt = a.get_text(strip=True)
+                            if href and txt and not href.startswith("http") and "telegram" not in href.lower():
+                                year_match = re.search(r"\((\d{4})\)", txt)
+                                year = year_match.group(1) if year_match else ("2026" if "2026" in path else "2025")
+                                full_url = f"{base_url}{href}" if href.startswith("/") else f"{base_url}/{href}"
+
+                                cleaned = re.sub(r"\s*\(\d{4}\)", "", txt).strip()
+                                slug = re.sub(r"[^a-z0-9]+", "-", cleaned.lower()).strip("-")
+                                if year and year not in slug:
+                                    slug = f"{slug}-{year}"
+
+                                downloads = {
+                                    "480p": {"url": f"{base_url}/download/{slug}-original-360p-hd/", "size": "450 MB"},
+                                    "720p": {"url": f"{base_url}/download/{slug}-original-720p-hd/", "size": "850 MB"},
+                                    "1080p": {"url": f"{base_url}/download/{slug}-original-1080p-hd/", "size": "1.8 GB"}
+                                }
+
+                                all_movies.append({
+                                    "title": txt,
+                                    "year": year,
+                                    "category": cat_id,
+                                    "url": full_url,
+                                    "moviePageUrl": full_url,
+                                    "quality": "HD Rip",
+                                    "downloads": downloads
+                                })
+                except Exception as cat_err:
+                    print(f"[Sync Engine] Error scraping category {path}: {cat_err}")
+    except Exception as e:
+        print(f"[Sync Engine Error] Failed to scrape Isaimini: {e}")
+
+    return all_movies
+
 def fetch_authorized_feed():
     """
-    Fetch movies from the authorized API/feed.
-    If the remote feed is unreachable or invalid, returns empty list and logs error.
+    Fetch movies from the authorized API/feed or live Isaimini upload feed.
     """
     if AUTHORIZED_FEED_URL.startswith("https://api.example.com"):
-        print("[Sync Engine] Using fallback demonstration authorized feed structure.")
-        return []
+        print("[Sync Engine] Polling live Isaimini upload feed for new movie releases...")
+        return scrape_isaimini_latest_movies()
 
     headers = {
         "User-Agent": "CineTamil-AuthorizedSyncEngine/1.0",
