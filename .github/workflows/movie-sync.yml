@@ -6,6 +6,11 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
+# Prevent concurrent jobs from modifying main simultaneously
+concurrency:
+  group: catalog-sync-group
+  cancel-in-progress: false
+
 jobs:
   sync-movies:
     runs-on: ubuntu-latest
@@ -22,6 +27,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install Dependencies
         run: |
@@ -36,19 +42,62 @@ jobs:
 
       - name: Resolve Intermediate URLs to Direct Download Endpoints
         run: |
-          echo "Resolving all intermediate download page URLs to direct fastbytes.xyz endpoints..."
+          echo "Resolving intermediate download page URLs to direct endpoints..."
           python resolve_to_direct.py
           echo "Resolution complete."
 
-      - name: Commit and Push Updated Catalog if Changed
+      - name: Synchronize, Commit and Push Updated Catalog
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add movies_data.js movie_web_app/movies.db
-          if git diff --staged --quiet; then
-            echo "No changes found. Catalog is up to date."
-          else
-            git commit -m "Auto-Sync: Updated catalog with direct download URLs [skip ci]"
-            git push origin main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "[INFO] Fetching latest origin/main..."
+          git fetch origin main
+
+          echo "[INFO] Stashing generated changes for safe rebase..."
+          git stash push -m "generated-sync-changes" -- movies_data.js movie_web_app/movies.db
+
+          echo "[INFO] Rebasing local branch onto origin/main..."
+          if ! git rebase origin/main; then
+            echo "[WARNING] Rebase conflict encountered. Aborting rebase and resetting..."
+            git rebase --abort
+            git reset --hard origin/main
           fi
 
+          echo "[INFO] Restoring generated changes..."
+          git stash pop || true
+
+          git add movies_data.js movie_web_app/movies.db
+
+          if git diff --staged --quiet; then
+            echo "[INFO] No changes found. Catalog is up to date."
+          else
+            git commit -m "Auto-Sync: Updated catalog with direct download URLs [skip ci]"
+
+            MAX_RETRIES=3
+            RETRY=0
+            PUSH_SUCCESS=0
+
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              RETRY=$((RETRY + 1))
+              echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
+              if git push origin HEAD:main; then
+                PUSH_SUCCESS=1
+                echo "[OK] Successfully pushed updated catalog to main."
+                break
+              else
+                echo "[WARNING] Push rejected. Fetching and rebasing onto origin/main..."
+                git fetch origin main
+                if ! git rebase origin/main; then
+                  echo "[ERROR] Rebase failed during push retry."
+                  git rebase --abort
+                  break
+                fi
+              fi
+            done
+
+            if [ $PUSH_SUCCESS -ne 1 ]; then
+              echo "[ERROR] Failed to push changes after $MAX_RETRIES attempts."
+              exit 1
+            fi
+          fi
