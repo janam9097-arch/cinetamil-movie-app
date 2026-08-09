@@ -221,7 +221,7 @@ function selectQuality(quality) {
 }
 
 // DOWNLOAD MOVIE DIRECT HANDLER
-function downloadMovie(movie, quality) {
+async function downloadMovie(movie, quality) {
   const download = movie?.downloads?.[quality];
 
   if (!download || !download.url || download.url.trim() === "" || download.url === "#") {
@@ -229,14 +229,29 @@ function downloadMovie(movie, quality) {
     return;
   }
 
+  let targetUrl = download.url;
+
+  // Try resolving direct server file link if backend API is available
+  try {
+    const res = await fetch(`/api/resolve_download?url=${encodeURIComponent(download.url)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.download_url) {
+        targetUrl = data.download_url;
+      }
+    }
+  } catch (e) {
+    // Static fallback
+  }
+
   console.log("==========================================");
   console.log("Movie:", movie.title);
   console.log("Selected quality:", quality);
-  console.log("Download URL:", download.url);
+  console.log("Final Target URL:", targetUrl);
   console.log("==========================================");
 
-  // Send browser directly to URL so browser/download manager can handle it
-  window.location.href = download.url;
+  // Open the target download URL in a new tab
+  window.open(targetUrl, "_blank", "noopener,noreferrer");
 }
 
 // SHOW DOWNLOAD ERROR NOTIFICATION
@@ -262,9 +277,15 @@ function openMovieDetails(movie) {
   const year = movie.year || "";
   const pageUrl = movie.moviePageUrl || "#";
 
-  // Filter available qualities that actually exist in data
+  // Filter available qualities in deterministic order (480p, 720p, 1080p)
   const downloadsObj = movie.downloads || {};
-  const availableQualities = Object.keys(downloadsObj).filter(q => downloadsObj[q] && downloadsObj[q].url);
+  const preferredOrder = ["480p", "720p", "1080p"];
+  const availableQualities = preferredOrder.filter(q => downloadsObj[q] && downloadsObj[q].url);
+  Object.keys(downloadsObj).forEach(q => {
+    if (downloadsObj[q] && downloadsObj[q].url && !availableQualities.includes(q)) {
+      availableQualities.push(q);
+    }
+  });
 
   console.log("[CineTamil Modal] Opening movie:", title);
   console.log("[CineTamil Modal] Available qualities:", availableQualities);

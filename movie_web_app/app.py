@@ -290,9 +290,53 @@ async def api_details(request):
     finally:
         conn.close()
 
+async def api_resolve_download(request):
+    url = request.query_params.get("url", "").strip()
+    if not url:
+        return JSONResponse({"error": "URL parameter required"}, status_code=400)
+    try:
+        async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True, timeout=10) as client:
+            curr = url
+            # Level 1: moviesdatamil.net -> download.moviespage.xyz
+            if "moviesdatamil.net" in curr:
+                r1 = await client.get(curr)
+                if r1.status_code == 200:
+                    soup1 = BeautifulSoup(r1.text, "html.parser")
+                    for a in soup1.find_all("a"):
+                        href = a.get("href", "")
+                        if "download.moviespage.xyz/download/file/" in href:
+                            curr = href
+                            break
+
+            # Level 2: download.moviespage.xyz -> movies.downloadpage.xyz
+            if "download.moviespage.xyz" in curr:
+                r2 = await client.get(curr)
+                if r2.status_code == 200:
+                    soup2 = BeautifulSoup(r2.text, "html.parser")
+                    for a in soup2.find_all("a"):
+                        href = a.get("href", "")
+                        if "downloadpage.xyz/download/page/" in href:
+                            curr = href
+                            break
+
+            # Level 3: movies.downloadpage.xyz -> cdn.uptomkv.ch
+            if "downloadpage.xyz" in curr:
+                r3 = await client.get(curr)
+                if r3.status_code == 200:
+                    soup3 = BeautifulSoup(r3.text, "html.parser")
+                    for a in soup3.find_all("a"):
+                        href = a.get("href", "")
+                        if "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
+                            curr = href
+                            break
+
+            return JSONResponse({"download_url": curr, "original_url": url})
+    except Exception as e:
+        return JSONResponse({"download_url": url, "original_url": url, "error": str(e)})
+
 async def serve_index(request):
-    public_dir = os.path.join(os.path.dirname(__file__), "public")
-    return FileResponse(os.path.join(public_dir, "index.html"))
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return FileResponse(os.path.join(root_dir, "index.html"))
 
 routes = [
     Route("/", serve_index),
@@ -301,7 +345,8 @@ routes = [
     Route("/api/category", api_category),
     Route("/api/atoz", api_atoz),
     Route("/api/details", api_details),
-    Mount("/", app=StaticFiles(directory=os.path.join(os.path.dirname(__file__), "public")), name="static")
+    Route("/api/resolve_download", api_resolve_download),
+    Mount("/", app=StaticFiles(directory=os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))), name="static")
 ]
 
 middleware = [
