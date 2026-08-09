@@ -207,9 +207,23 @@ def export_to_movies_data_js():
 
 def fetch_authorized_feed():
     """
-    Fetches incoming movie metadata and download URLs from the authorized feed / API / local file.
-    Supports JSON feed or local test feed file.
+    Fetches incoming movie metadata and download URLs from the authorized feed / API / local file / local MCP DB.
     """
+    # Check if local isaimini-mcp-python DB exists
+    mcp_db_path = os.path.abspath(os.path.join(ROOT_DIR, "isaimini-mcp-python", "movies.db"))
+    if os.path.exists(mcp_db_path):
+        try:
+            mcp_conn = sqlite3.connect(mcp_db_path)
+            mcp_conn.row_factory = sqlite3.Row
+            rows = mcp_conn.execute("SELECT * FROM movies").fetchall()
+            items = [dict(r) for r in rows]
+            mcp_conn.close()
+            if items:
+                print(f"[Sync Engine] Found {len(items)} movies in local MCP database ({mcp_db_path}).")
+                return items
+        except Exception as e:
+            print(f"[Sync Engine] Local MCP DB check notice: {e}")
+
     print(f"[Sync Engine] Fetching authorized movie feed from: {AUTHORIZED_FEED_URL}")
     
     # Check if URL is local file path (for testing or local feed)
