@@ -1,12 +1,19 @@
-﻿name: Refresh Download URLs
+name: Refresh Download URLs
 
 on:
   schedule:
-    # Run approximately every 55 minutes to keep temporary download tokens fresh
+    # Run every 55 minutes to keep signed download tokens fresh (tokens expire ~1 hour)
+    # GitHub Actions minimum cron granularity is 5 minutes; */55 is supported.
     - cron: '*/55 * * * *'
   workflow_dispatch:
+    inputs:
+      full_scan:
+        description: 'Process all 940 movies (true) or only cached ones (false)'
+        required: false
+        default: 'false'
+        type: string
 
-# Prevent overlapping refresh jobs
+# Prevent two refresh jobs running simultaneously
 concurrency:
   group: refresh-downloads-group
   cancel-in-progress: false
@@ -15,48 +22,142 @@ jobs:
   refresh-downloads:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write   # needed to git push movies_data.js + movies.db
 
     steps:
+      # ── 1. CHECKOUT ────────────────────────────────────────────────────────
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0   # full history so git push works cleanly
 
-      - name: Set up Python
+      # ── 2. PYTHON SETUP ────────────────────────────────────────────────────
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install Dependencies
+      # ── 3. DEPENDENCIES ────────────────────────────────────────────────────
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then
+            echo "Installing from requirements.txt..."
             pip install -r requirements.txt
           else
+            echo "No requirements.txt found — installing known dependencies."
             pip install httpx beautifulsoup4 starlette uvicorn
           fi
 
-      - name: Run Download Refresh Script
+      # ── 4. PRE-RUN SNAPSHOT ────────────────────────────────────────────────
+      - name: Log pre-run catalog state
         run: |
-          echo "=========================================="
-          echo "Start Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          echo "=========================================="
-          
-          python refresh_downloads.py
-          
-          echo "=========================================="
-          echo "Completion Time: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
-          echo "=========================================="
+          echo "=================================================="
+          echo "  CineTamil Download URL Refresh"
+          echo "  Start : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  Runner: $RUNNER_NAME"
+          echo "=================================================="
+          python - <<'PYEOF'
+          import sqlite3, json, os
+          db = "movie_web_app/movies.db"
+          if not os.path.exists(db):
+              print("[PRE-RUN] movies.db not found — will be created by sync.")
+          else:
+              conn = sqlite3.connect(db)
+              total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+              with_dl = conn.execute(
+                  "SELECT COUNT(*) FROM movies WHERE downloads_json IS NOT NULL "
+                  "AND downloads_json != '{}' AND downloads_json != ''"
+              ).fetchone()[0]
+              direct_dl = conn.execute(
+                  "SELECT COUNT(*) FROM movies WHERE downloads_json LIKE '%fastbytes.xyz%' "
+                  "OR downloads_json LIKE '%uptomkv.ch%'"
+              ).fetchone()[0]
+              conn.close()
+              print(f"[PRE-RUN] Total movies in DB : {total}")
+              print(f"[PRE-RUN] Movies with downloads : {with_dl}")
+              print(f"[PRE-RUN] Movies with direct URLs : {direct_dl}")
+          PYEOF
 
-      - name: Commit and Push Updated Catalog
+      # ── 5. RUN REFRESH SCRIPT ──────────────────────────────────────────────
+      - name: Refresh download URLs
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add movies_data.js movie_web_app/movies.db
-          if git diff --staged --quiet; then
-            echo "No changes in generated files. Repository is up to date."
+          FULL_SCAN="${{ github.event.inputs.full_scan }}"
+          if [ "$FULL_SCAN" = "true" ]; then
+            echo "[INFO] Full scan requested — processing all movies."
+            python refresh_downloads.py --all
           else
-            git commit -m "Auto-Refresh: Updated temporary download URLs [skip ci]"
-            git push origin main
+            echo "[INFO] Incremental refresh — processing movies with existing downloads."
+            python refresh_downloads.py
           fi
+
+      # ── 6. POST-RUN VALIDATION ─────────────────────────────────────────────
+      - name: Validate refresh results and fail if nothing was refreshed
+        run: |
+          python - <<'PYEOF'
+          import sqlite3, json, sys, os
+
+          db = "movie_web_app/movies.db"
+          conn = sqlite3.connect(db)
+
+          total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
+          direct_dl = conn.execute(
+              "SELECT COUNT(*) FROM movies WHERE downloads_json LIKE '%fastbytes.xyz%' "
+              "OR downloads_json LIKE '%uptomkv.ch%'"
+          ).fetchone()[0]
+          moviesdata_exists = os.path.exists("movies_data.js")
+
+          conn.close()
+
+          print()
+          print("========== REFRESH SUMMARY ==========")
+          print(f"  Total movies in DB          : {total}")
+          print(f"  Movies with direct DL URLs  : {direct_dl}")
+          print(f"  movies_data.js exists       : {moviesdata_exists}")
+          print("=====================================")
+
+          if direct_dl == 0:
+              print()
+              print("[ERROR] Zero movies have working direct download URLs after refresh.")
+              print("        This likely means the source site is unreachable or its structure changed.")
+              print("        Failing the workflow so the issue is visible in GitHub Actions.")
+              sys.exit(1)
+
+          if not moviesdata_exists:
+              print()
+              print("[ERROR] movies_data.js was not generated. The export step may have failed.")
+              sys.exit(1)
+
+          print(f"\n[OK] Refresh produced {direct_dl} direct download URLs. Proceeding to commit.")
+          PYEOF
+
+      # ── 7. COMMIT AND PUSH UPDATED CATALOG ────────────────────────────────
+      - name: Commit and push updated catalog to repository
+        run: |
+          git config --global user.name  "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage generated files
+          git add movies_data.js movie_web_app/movies.db
+
+          if git diff --staged --quiet; then
+            echo "[INFO] No changes detected in generated files. Catalog is already up to date."
+          else
+            CHANGED=$(git diff --staged --stat | tail -1)
+            git commit -m "Auto-Refresh: Updated direct download URLs — $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
+            git push origin HEAD:main
+            echo "[OK] Pushed updated catalog to main branch."
+            echo "     Changed: $CHANGED"
+            echo "     Live site will serve fresh URLs on next page load."
+          fi
+
+      # ── 8. FINAL STATUS ────────────────────────────────────────────────────
+      - name: Log completion status
+        if: always()
+        run: |
+          echo "=================================================="
+          echo "  Completion : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  Status     : ${{ job.status }}"
+          echo "  Workflow   : ${{ github.workflow }} #${{ github.run_number }}"
+          echo "=================================================="
