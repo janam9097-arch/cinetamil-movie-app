@@ -204,6 +204,20 @@ function performSearch(query) {
   }
 }
 
+// URL TYPE CLASSIFIER — matches sync_service.py is_direct_file_url / is_authorized_download_url
+function getUrlType(url) {
+  if (!url) return "unavailable";
+  if (
+    url.includes("mv1.uptomkv.ch/files/") ||
+    url.includes("download.fastbytes.xyz/download.php") ||
+    url.includes("r2.cloudflarestorage.com") ||
+    url.endsWith(".mp4") ||
+    url.includes(".mp4?")
+  ) return "direct";
+  if (url.includes("download.moviespage.xyz/download/file/")) return "page";
+  return "unavailable";
+}
+
 // QUALITY SELECTION HANDLER
 function selectQuality(quality) {
   if (!currentMovieObject || !currentMovieObject.downloads) return;
@@ -239,55 +253,55 @@ function selectQuality(quality) {
   if (sizeEl) sizeEl.innerText = downloadInfo.size || "Unknown Size";
 
   if (mainBtnEl) {
-    const url = downloadInfo.url;
-    const isDirectFile = url.includes("mv1.uptomkv.ch") || url.includes("r2.cloudflarestorage.com") || url.endsWith(".mp4") || url.includes(".mp4?");
-    if (isDirectFile) {
-      mainBtnEl.innerText = `⬇ Direct File Download (${quality})`;
-    } else if (url.includes("download.moviespage.xyz")) {
+    const urlType = getUrlType(downloadInfo.url);
+    if (urlType === "direct") {
+      mainBtnEl.innerText = `⬇ Direct Download (${quality})`;
+      mainBtnEl.title = "Clicking will download the movie file directly";
+    } else if (urlType === "page") {
       mainBtnEl.innerText = `🔗 Open Download Page (${quality})`;
+      mainBtnEl.title = "Opens the download page — click the download button there to get the file";
     } else {
-      mainBtnEl.innerText = `⬇ Download (${quality})`;
+      mainBtnEl.innerText = `⚠️ Download Unavailable (${quality})`;
+      mainBtnEl.title = "No download available for this quality";
+      mainBtnEl.disabled = true;
+      return;
     }
     mainBtnEl.disabled = false;
   }
 }
 
-// DOWNLOAD MOVIE DIRECT HANDLER
+// DOWNLOAD MOVIE HANDLER
 function downloadMovie(movie, quality) {
   const download = movie?.downloads?.[quality];
+  const url = download?.url || "";
+  const urlType = getUrlType(url);
 
-  // Stage console logging per specification
-  console.log("[SYNC] source URL:", movie?.moviePageUrl);
-  console.log("[DB] download URL:", download?.url);
-  console.log("[DATA] movie downloads:", movie?.downloads);
-  console.log("[UI] selected quality:", quality);
-  console.log("[UI] final download URL:", download?.url);
+  console.log("[CineTamil] Movie:", movie?.title);
+  console.log("[CineTamil] Quality:", quality);
+  console.log("[CineTamil] Stored URL:", url);
+  console.log("[CineTamil] URL Type:", urlType);
 
-  // Strict check: download object & URL must exist and must NOT be an invalid webpage
-  if (
-    !download ||
-    !download.url ||
-    download.url.trim() === "" ||
-    download.url === "#" ||
-    download.url.includes("moviesdatamil.net") ||
-    download.url.includes("downloadpage.xyz/download/page/")
-  ) {
+  if (urlType === "unavailable" || !url) {
     showDownloadError("Download unavailable for this quality.");
     return;
   }
 
-  const targetUrl = download.url;
-
-  // Synchronous window opening on click event to prevent popup blockers and white screens
-  try {
-    const win = window.open(targetUrl, "_blank", "noopener,noreferrer");
+  if (urlType === "direct") {
+    // Trigger browser file download using a temporary anchor with download attribute
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = ""; // let browser infer filename from URL
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } else {
+    // urlType === "page" — open the authorized download page in a new tab
+    const win = window.open(url, "_blank", "noopener,noreferrer");
     if (!win || win.closed || typeof win.closed === "undefined") {
-      // Fallback if popup blocker intercepted synchronous open
-      window.location.href = targetUrl;
+      // Popup blocked fallback
+      window.location.href = url;
     }
-  } catch (e) {
-    console.error("Window open error:", e);
-    showDownloadError("Download unavailable for this quality.");
   }
 }
 

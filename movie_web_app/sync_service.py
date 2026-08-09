@@ -90,29 +90,52 @@ def is_valid_url(url: str) -> bool:
     url = url.strip()
     return url.startswith("http://") or url.startswith("https://") or url.startswith("file://")
 
-def is_category_a_file_url(url: str) -> bool:
+def is_direct_file_url(url: str) -> bool:
     """
-    Validates if a URL is an actual Category A authorized file download URL.
-    Excludes non-file webpages (movie info pages, download selection webpages, homepages).
+    Returns True if the URL points directly to a downloadable file (not an HTML page).
+    These get labelled "Direct Download" in the UI.
     """
-    if not is_valid_url(url):
-        return False
-    url = url.strip()
-    if "moviesdatamil.net" in url or "downloadpage.xyz/download/page/" in url:
+    if not url:
         return False
     return (
-        "download.moviespage.xyz/download/file/" in url or
-        "r2.cloudflarestorage.com" in url or
         "mv1.uptomkv.ch/files/" in url or
+        "download.fastbytes.xyz/download.php" in url or
+        "r2.cloudflarestorage.com" in url or
         url.endswith(".mp4") or
         ".mp4?" in url
     )
 
-def resolve_url_to_category_a_sync(url: str) -> str:
+def is_authorized_download_url(url: str) -> bool:
     """
-    Synchronously resolves a download webpage link to a Category A authorized server file URL if possible.
+    Returns True if the URL is a legitimate, authorized download destination.
+    This includes:
+    - Direct file URLs (mv1.uptomkv.ch, fastbytes, r2, .mp4)
+    - Authorized intermediate download-page URLs (download.moviespage.xyz/download/file/)
+    Excludes:
+    - moviesdatamil.net movie-info pages (not download pages)
+    - downloadpage.xyz/download/page/ (Level 2 intermediate, not stored)
     """
-    if is_category_a_file_url(url):
+    if not is_valid_url(url):
+        return False
+    url = url.strip()
+    # Exclude movie-info pages and deeper intermediate pages — not useful to store
+    if "moviesdatamil.net" in url:
+        return False
+    if "downloadpage.xyz/download/page/" in url:
+        return False
+    # Accept authorized download-page URLs from the feed
+    if "download.moviespage.xyz/download/file/" in url:
+        return True
+    # Accept direct file URLs
+    return is_direct_file_url(url)
+
+def resolve_url_to_authorized_sync(url: str) -> str:
+    """
+    If the given URL is a moviesdatamil.net/download/ page, follow it one level
+    to extract the download.moviespage.xyz link from the page.
+    Otherwise returns the URL as-is if it is already an authorized download URL.
+    """
+    if is_authorized_download_url(url):
         return url
     if not is_valid_url(url):
         return ""
@@ -131,7 +154,7 @@ def resolve_url_to_category_a_sync(url: str) -> str:
     except Exception:
         pass
 
-    return url if is_category_a_file_url(url) else ""
+    return url if is_authorized_download_url(url) else ""
 
 def export_to_movies_data_js():
     conn = get_db()
@@ -144,12 +167,12 @@ def export_to_movies_data_js():
             if row_dict.get("downloads_json"):
                 try:
                     parsed_dls = json.loads(row_dict["downloads_json"])
-                    # Strict filter: include ONLY Category A Authorized File URLs in static catalog
+                    # Include all authorized download URLs (direct files AND download-page URLs)
                     if isinstance(parsed_dls, dict):
                         for q in ["480p", "720p", "1080p"]:
                             if q in parsed_dls and isinstance(parsed_dls[q], dict):
                                 q_url = parsed_dls[q].get("url", "")
-                                if is_category_a_file_url(q_url):
+                                if is_authorized_download_url(q_url):
                                     downloads[q] = {
                                         "url": q_url,
                                         "size": parsed_dls[q].get("size", "")
@@ -280,7 +303,7 @@ def process_movie_sync(feed_items=None):
             poster_url = str(movie.get("posterUrl") or movie.get("poster_url") or movie.get("poster", ""))
             release_date = str(movie.get("release_date", ""))
 
-            # Extract & validate download URLs: MUST resolve or match Category A Authorized File URL
+            # Extract & validate download URLs from feed — accept all authorized download URLs
             incoming_downloads = movie.get("downloads", {})
             valid_downloads = {}
             if isinstance(incoming_downloads, dict):
@@ -288,8 +311,8 @@ def process_movie_sync(feed_items=None):
                     if q in incoming_downloads and isinstance(incoming_downloads[q], dict):
                         q_url = incoming_downloads[q].get("url")
                         q_size = incoming_downloads[q].get("size", "")
-                        resolved_u = resolve_url_to_category_a_sync(q_url) if q_url else ""
-                        if is_category_a_file_url(resolved_u):
+                        resolved_u = resolve_url_to_authorized_sync(q_url) if q_url else ""
+                        if is_authorized_download_url(resolved_u):
                             valid_downloads[q] = {"url": resolved_u, "size": q_size}
 
             # Check if movie already exists in SQLite (by title or moviePageUrl)
@@ -304,8 +327,8 @@ def process_movie_sync(feed_items=None):
                     except Exception:
                         existing_dls = {}
 
-                # Filter existing_dls for Category A URLs
-                merged_dls = {q: obj for q, obj in existing_dls.items() if is_category_a_file_url(obj.get("url", ""))}
+                # Keep all existing authorized download URLs (both direct files and download pages)
+                merged_dls = {q: obj for q, obj in existing_dls.items() if is_authorized_download_url(obj.get("url", ""))}
                 dls_changed = False
                 for q, q_obj in valid_downloads.items():
                     if q not in merged_dls or merged_dls[q].get("url") != q_obj["url"] or merged_dls[q].get("size") != q_obj["size"]:
