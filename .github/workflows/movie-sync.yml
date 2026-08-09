@@ -6,10 +6,10 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
-# Prevent concurrent jobs from modifying main simultaneously
+# Prevent concurrent jobs by canceling outdated in-progress runs
 concurrency:
   group: catalog-sync-group
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   sync-movies:
@@ -83,8 +83,8 @@ jobs:
               echo "[OK] Successfully pushed updated catalog to main."
               break
             else
-              echo "[WARNING] Push rejected. Retrying in 2 seconds..."
-              sleep 2
+              echo "[WARNING] Push rejected. Retrying in 5 seconds..."
+              sleep 5
             fi
           done
 

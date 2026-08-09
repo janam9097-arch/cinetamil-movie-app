@@ -12,10 +12,10 @@ on:
         default: 'false'
         type: string
 
-# Prevent concurrent refresh jobs from modifying main simultaneously
+# Prevent concurrent refresh jobs by canceling outdated in-progress runs
 concurrency:
   group: refresh-downloads-group
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   refresh-downloads:
@@ -173,8 +173,8 @@ jobs:
               echo "[OK] Successfully pushed updated catalog to main."
               break
             else
-              echo "[WARNING] Push rejected by origin/main. Retrying in 2 seconds..."
-              sleep 2
+              echo "[WARNING] Push rejected by origin/main. Retrying in 5 seconds..."
+              sleep 5
             fi
           done
 
