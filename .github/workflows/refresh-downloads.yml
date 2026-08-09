@@ -3,7 +3,6 @@ name: Refresh Download URLs
 on:
   schedule:
     # Run every 55 minutes to keep signed download tokens fresh (tokens expire ~1 hour)
-    # GitHub Actions minimum cron granularity is 5 minutes; */55 is supported.
     - cron: '*/55 * * * *'
   workflow_dispatch:
     inputs:
@@ -13,7 +12,7 @@ on:
         default: 'false'
         type: string
 
-# Prevent two refresh jobs running simultaneously
+# Prevent concurrent refresh jobs from modifying main simultaneously
 concurrency:
   group: refresh-downloads-group
   cancel-in-progress: false
@@ -22,14 +21,14 @@ jobs:
   refresh-downloads:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # needed to git push movies_data.js + movies.db
+      contents: write   # Required for pushing changes to repository
 
     steps:
       # ── 1. CHECKOUT ────────────────────────────────────────────────────────
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history so git push works cleanly
+          fetch-depth: 0   # Full commit history so git rebase and push work cleanly
 
       # ── 2. PYTHON SETUP ────────────────────────────────────────────────────
       - name: Set up Python 3.11
@@ -46,23 +45,23 @@ jobs:
             echo "Installing from requirements.txt..."
             pip install -r requirements.txt
           else
-            echo "No requirements.txt found — installing known dependencies."
+            echo "No requirements.txt found — installing required packages."
             pip install httpx beautifulsoup4 starlette uvicorn
           fi
 
-      # ── 4. PRE-RUN SNAPSHOT ────────────────────────────────────────────────
+      # ── 4. PRE-RUN LOGGING ─────────────────────────────────────────────────
       - name: Log pre-run catalog state
         run: |
           echo "=================================================="
-          echo "  CineTamil Download URL Refresh"
-          echo "  Start : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "  Runner: $RUNNER_NAME"
+          echo "  CineTamil Download URL Refresh Job"
+          echo "  Start Time : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  Runner Name: $RUNNER_NAME"
           echo "=================================================="
           python - <<'PYEOF'
           import sqlite3, json, os
           db = "movie_web_app/movies.db"
           if not os.path.exists(db):
-              print("[PRE-RUN] movies.db not found — will be created by sync.")
+              print("[PRE-RUN] movies.db not found — will be initialized.")
           else:
               conn = sqlite3.connect(db)
               total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
@@ -81,19 +80,19 @@ jobs:
           PYEOF
 
       # ── 5. RUN REFRESH SCRIPT ──────────────────────────────────────────────
-      - name: Refresh download URLs
+      - name: Run refresh_downloads.py
         run: |
           FULL_SCAN="${{ github.event.inputs.full_scan }}"
           if [ "$FULL_SCAN" = "true" ]; then
             echo "[INFO] Full scan requested — processing all movies."
             python refresh_downloads.py --all
           else
-            echo "[INFO] Incremental refresh — processing movies with existing downloads."
+            echo "[INFO] Standard refresh — processing movies with existing downloads."
             python refresh_downloads.py
           fi
 
       # ── 6. POST-RUN VALIDATION ─────────────────────────────────────────────
-      - name: Validate refresh results and fail if nothing was refreshed
+      - name: Validate refresh results
         run: |
           python - <<'PYEOF'
           import sqlite3, json, sys, os
@@ -111,53 +110,95 @@ jobs:
           conn.close()
 
           print()
-          print("========== REFRESH SUMMARY ==========")
+          print("========== REFRESH VALIDATION ==========")
           print(f"  Total movies in DB          : {total}")
           print(f"  Movies with direct DL URLs  : {direct_dl}")
           print(f"  movies_data.js exists       : {moviesdata_exists}")
-          print("=====================================")
+          print("========================================")
 
           if direct_dl == 0:
-              print()
               print("[ERROR] Zero movies have working direct download URLs after refresh.")
-              print("        This likely means the source site is unreachable or its structure changed.")
-              print("        Failing the workflow so the issue is visible in GitHub Actions.")
+              print("        Failing workflow to prevent deploying empty dataset.")
               sys.exit(1)
 
           if not moviesdata_exists:
-              print()
-              print("[ERROR] movies_data.js was not generated. The export step may have failed.")
+              print("[ERROR] movies_data.js was not generated. Export step failed.")
               sys.exit(1)
 
-          print(f"\n[OK] Refresh produced {direct_dl} direct download URLs. Proceeding to commit.")
+          print(f"[OK] Refresh produced {direct_dl} valid direct download URLs.")
           PYEOF
 
-      # ── 7. COMMIT AND PUSH UPDATED CATALOG ────────────────────────────────
-      - name: Commit and push updated catalog to repository
+      # ── 7. SYNCHRONIZE, COMMIT & PUSH TO MAIN ──────────────────────────────
+      - name: Synchronize with origin/main, commit & push updated catalog
         run: |
-          git config --global user.name  "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # 1. Configure exact specified Git identity
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stage generated files
+          # 2. Fetch latest remote main branch
+          echo "[INFO] Fetching latest origin/main..."
+          git fetch origin main
+
+          # 3. Safely rebase working tree onto latest origin/main
+          echo "[INFO] Stashing generated changes for safe rebase..."
+          git stash push -m "generated-catalog-changes" -- movies_data.js movie_web_app/movies.db
+
+          echo "[INFO] Rebasing local branch onto origin/main..."
+          if ! git rebase origin/main; then
+            echo "[WARNING] Rebase conflict encountered. Aborting rebase and resetting to origin/main..."
+            git rebase --abort
+            git reset --hard origin/main
+          fi
+
+          echo "[INFO] Restoring generated changes..."
+          git stash pop || true
+
+          # 4. Stage ONLY intended generated files
           git add movies_data.js movie_web_app/movies.db
 
+          # 5. Check if there are actual diffs staged
           if git diff --staged --quiet; then
             echo "[INFO] No changes detected in generated files. Catalog is already up to date."
           else
-            CHANGED=$(git diff --staged --stat | tail -1)
-            git commit -m "Auto-Refresh: Updated direct download URLs — $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
-            git push origin HEAD:main
-            echo "[OK] Pushed updated catalog to main branch."
-            echo "     Changed: $CHANGED"
-            echo "     Live site will serve fresh URLs on next page load."
+            echo "[INFO] Committing updated generated files..."
+            git commit -m "Auto-Refresh: Updated direct download URLs [skip ci]"
+
+            # 6. Safe push retry loop without force-pushing
+            MAX_RETRIES=3
+            RETRY=0
+            PUSH_SUCCESS=0
+
+            while [ $RETRY -lt $MAX_RETRIES ]; do
+              RETRY=$((RETRY + 1))
+              echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
+              if git push origin HEAD:main; then
+                PUSH_SUCCESS=1
+                echo "[OK] Successfully pushed updated catalog to main."
+                break
+              else
+                echo "[WARNING] Push rejected by origin/main. Fetching latest remote commits and rebasing..."
+                git fetch origin main
+                if ! git rebase origin/main; then
+                  echo "[ERROR] Rebase failed during push retry. Aborting rebase."
+                  git rebase --abort
+                  break
+                fi
+              fi
+            done
+
+            if [ $PUSH_SUCCESS -ne 1 ]; then
+              echo "[ERROR] Failed to push changes to origin/main after $MAX_RETRIES safe attempts."
+              echo "        The remote branch may have received incompatible commits."
+              exit 1
+            fi
           fi
 
-      # ── 8. FINAL STATUS ────────────────────────────────────────────────────
-      - name: Log completion status
+      # ── 8. COMPLETION LOGGING ──────────────────────────────────────────────
+      - name: Log final status
         if: always()
         run: |
           echo "=================================================="
-          echo "  Completion : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "  Status     : ${{ job.status }}"
-          echo "  Workflow   : ${{ github.workflow }} #${{ github.run_number }}"
+          echo "  Completion Time : $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  Job Status      : ${{ job.status }}"
+          echo "  Run Number      : ${{ github.run_number }}"
           echo "=================================================="
