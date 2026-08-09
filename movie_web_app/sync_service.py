@@ -72,7 +72,7 @@ def log_sync_event(status: str, message: str, added_count: int = 0):
         conn.close()
 
 def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
-    if "cdn.uptomkv.ch" in url or "download.php?dl=" in url:
+    if "download.moviespage.xyz" in url:
         return url
     if not url.startswith("http"):
         return url
@@ -94,26 +94,6 @@ def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
                     for a in soup1.find_all("a"):
                         href = a.get("href", "")
                         if "moviespage.xyz/download/file/" in href:
-                            curr = href
-                            break
-
-            if "download.moviespage.xyz" in curr:
-                r2 = client.get(curr)
-                if r2.status_code == 200:
-                    soup2 = BeautifulSoup(r2.text, "html.parser")
-                    for a in soup2.find_all("a"):
-                        href = a.get("href", "")
-                        if "downloadpage.xyz/download/page/" in href:
-                            curr = href
-                            break
-
-            if "downloadpage.xyz" in curr:
-                r3 = client.get(curr)
-                if r3.status_code == 200:
-                    soup3 = BeautifulSoup(r3.text, "html.parser")
-                    for a in soup3.find_all("a"):
-                        href = a.get("href", "")
-                        if "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
                             curr = href
                             break
         finally:
