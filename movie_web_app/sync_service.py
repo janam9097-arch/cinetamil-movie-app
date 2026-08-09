@@ -71,6 +71,59 @@ def log_sync_event(status: str, message: str, added_count: int = 0):
     finally:
         conn.close()
 
+def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
+    if "cdn.uptomkv.ch" in url or "download.php?dl=" in url:
+        return url
+    if not url.startswith("http"):
+        return url
+
+    curr = url
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        from bs4 import BeautifulSoup
+        should_close = False
+        if client is None:
+            client = httpx.Client(headers=headers, follow_redirects=True, timeout=8.0)
+            should_close = True
+
+        try:
+            if "moviesdatamil.net/download/" in curr:
+                r1 = client.get(curr)
+                if r1.status_code == 200:
+                    soup1 = BeautifulSoup(r1.text, "html.parser")
+                    for a in soup1.find_all("a"):
+                        href = a.get("href", "")
+                        if "moviespage.xyz/download/file/" in href:
+                            curr = href
+                            break
+
+            if "download.moviespage.xyz" in curr:
+                r2 = client.get(curr)
+                if r2.status_code == 200:
+                    soup2 = BeautifulSoup(r2.text, "html.parser")
+                    for a in soup2.find_all("a"):
+                        href = a.get("href", "")
+                        if "downloadpage.xyz/download/page/" in href:
+                            curr = href
+                            break
+
+            if "downloadpage.xyz" in curr:
+                r3 = client.get(curr)
+                if r3.status_code == 200:
+                    soup3 = BeautifulSoup(r3.text, "html.parser")
+                    for a in soup3.find_all("a"):
+                        href = a.get("href", "")
+                        if "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
+                            curr = href
+                            break
+        finally:
+            if should_close:
+                client.close()
+    except Exception:
+        pass
+
+    return curr
+
 def export_to_movies_data_js():
     conn = get_db()
     try:
@@ -78,7 +131,6 @@ def export_to_movies_data_js():
         movie_list = []
         for r in rows:
             row_dict = dict(r)
-            # Parse downloads_json if present
             downloads = {}
             if row_dict.get("downloads_json"):
                 try:
