@@ -242,8 +242,21 @@ function selectQuality(quality) {
 async function downloadMovie(movie, quality) {
   const download = movie?.downloads?.[quality];
 
-  if (!download || !download.url || download.url.trim() === "" || download.url === "#") {
-    showDownloadError(`${quality} download is currently unavailable.`);
+  // Console debugging per specification
+  console.log("Movie:", movie?.title);
+  console.log("Quality:", quality);
+  console.log("Download URL:", download?.url);
+
+  // Strict check: download object & URL must exist and must NOT be a webpage (moviesdatamil.net)
+  if (
+    !download ||
+    !download.url ||
+    download.url.trim() === "" ||
+    download.url === "#" ||
+    download.url.includes("moviesdatamil.net") ||
+    download.url.includes("downloadpage.xyz/download/page/")
+  ) {
+    showDownloadError("Download unavailable for this quality.");
     return;
   }
 
@@ -261,12 +274,6 @@ async function downloadMovie(movie, quality) {
   } catch (e) {
     // Static fallback
   }
-
-  console.log("==========================================");
-  console.log("Movie:", movie.title);
-  console.log("Selected quality:", quality);
-  console.log("Final Target URL:", targetUrl);
-  console.log("==========================================");
 
   // Open the target download URL in a new tab
   window.open(targetUrl, "_blank", "noopener,noreferrer");

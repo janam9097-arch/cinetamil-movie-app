@@ -6,6 +6,7 @@ import sqlite3
 import datetime
 import httpx
 import urllib.parse
+from bs4 import BeautifulSoup
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -89,6 +90,49 @@ def is_valid_url(url: str) -> bool:
     url = url.strip()
     return url.startswith("http://") or url.startswith("https://") or url.startswith("file://")
 
+def is_category_a_file_url(url: str) -> bool:
+    """
+    Validates if a URL is an actual Category A authorized file download URL.
+    Excludes non-file webpages (movie info pages, download selection webpages, homepages).
+    """
+    if not is_valid_url(url):
+        return False
+    url = url.strip()
+    if "moviesdatamil.net" in url or "downloadpage.xyz/download/page/" in url:
+        return False
+    return (
+        "download.moviespage.xyz/download/file/" in url or
+        "r2.cloudflarestorage.com" in url or
+        "mv1.uptomkv.ch/files/" in url or
+        url.endswith(".mp4") or
+        ".mp4?" in url
+    )
+
+def resolve_url_to_category_a_sync(url: str) -> str:
+    """
+    Synchronously resolves a download webpage link to a Category A authorized server file URL if possible.
+    """
+    if is_category_a_file_url(url):
+        return url
+    if not is_valid_url(url):
+        return ""
+
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        if "moviesdatamil.net/download/" in url:
+            with httpx.Client(headers=headers, follow_redirects=True, timeout=8.0) as client:
+                r1 = client.get(url)
+                if r1.status_code == 200:
+                    soup1 = BeautifulSoup(r1.text, "html.parser")
+                    for a in soup1.find_all("a"):
+                        href = a.get("href", "")
+                        if "moviespage.xyz/download/file/" in href:
+                            return href
+    except Exception:
+        pass
+
+    return url if is_category_a_file_url(url) else ""
+
 def export_to_movies_data_js():
     conn = get_db()
     try:
@@ -99,7 +143,17 @@ def export_to_movies_data_js():
             downloads = {}
             if row_dict.get("downloads_json"):
                 try:
-                    downloads = json.loads(row_dict["downloads_json"])
+                    parsed_dls = json.loads(row_dict["downloads_json"])
+                    # Strict filter: include ONLY Category A Authorized File URLs in static catalog
+                    if isinstance(parsed_dls, dict):
+                        for q in ["480p", "720p", "1080p"]:
+                            if q in parsed_dls and isinstance(parsed_dls[q], dict):
+                                q_url = parsed_dls[q].get("url", "")
+                                if is_category_a_file_url(q_url):
+                                    downloads[q] = {
+                                        "url": q_url,
+                                        "size": parsed_dls[q].get("size", "")
+                                    }
                 except Exception:
                     downloads = {}
 
@@ -186,6 +240,7 @@ def process_movie_sync(feed_items=None):
     - Prevents duplicates (matches normalized title/URL)
     - Updates existing records if quality/metadata changed
     - Inserts new movies automatically
+    - Strictly stores ONLY Category A Authorized File URLs in downloads
     - Exports updated movies_data.js
     """
     conn = get_db()
@@ -225,7 +280,7 @@ def process_movie_sync(feed_items=None):
             poster_url = str(movie.get("posterUrl") or movie.get("poster_url") or movie.get("poster", ""))
             release_date = str(movie.get("release_date", ""))
 
-            # Extract & validate download URLs
+            # Extract & validate download URLs: MUST resolve or match Category A Authorized File URL
             incoming_downloads = movie.get("downloads", {})
             valid_downloads = {}
             if isinstance(incoming_downloads, dict):
@@ -233,14 +288,14 @@ def process_movie_sync(feed_items=None):
                     if q in incoming_downloads and isinstance(incoming_downloads[q], dict):
                         q_url = incoming_downloads[q].get("url")
                         q_size = incoming_downloads[q].get("size", "")
-                        if is_valid_url(q_url):
-                            valid_downloads[q] = {"url": q_url, "size": q_size}
+                        resolved_u = resolve_url_to_category_a_sync(q_url) if q_url else ""
+                        if is_category_a_file_url(resolved_u):
+                            valid_downloads[q] = {"url": resolved_u, "size": q_size}
 
             # Check if movie already exists in SQLite (by title or moviePageUrl)
             existing = conn.execute("SELECT * FROM movies WHERE title = ? OR url = ?", (title, movie_page_url)).fetchone()
 
             if existing:
-                # Compare existing data vs incoming data
                 row_dict = dict(existing)
                 existing_dls = {}
                 if row_dict.get("downloads_json"):
@@ -249,8 +304,8 @@ def process_movie_sync(feed_items=None):
                     except Exception:
                         existing_dls = {}
 
-                # Merge downloads: incoming qualities add or update existing qualities
-                merged_dls = dict(existing_dls)
+                # Filter existing_dls for Category A URLs
+                merged_dls = {q: obj for q, obj in existing_dls.items() if is_category_a_file_url(obj.get("url", ""))}
                 dls_changed = False
                 for q, q_obj in valid_downloads.items():
                     if q not in merged_dls or merged_dls[q].get("url") != q_obj["url"] or merged_dls[q].get("size") != q_obj["size"]:

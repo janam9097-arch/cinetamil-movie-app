@@ -1,0 +1,435 @@
+{
+  "total_movies": 255,
+  "counts": {
+    "A": 563,
+    "B": 0,
+    "C": 0,
+    "D": 0,
+    "E": 202,
+    "F": 0,
+    "G": 0
+  },
+  "category_c_movies": [],
+  "sample_movies": [
+    {
+      "title": "AIR All India Rankers (2025)",
+      "moviePageUrl": "https://moviesdatamil.net/air-all-india-rankers-2025-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/94895"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Gurthukosthunnayi (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/gurthukosthunnayi-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100272"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100258"
+        ]
+      }
+    },
+    {
+      "title": "90s A Middle Class Biopic (2025)",
+      "moviePageUrl": "https://moviesdatamil.net/90s-a-middle-class-biopic-2025-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/94922"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Batchmates (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/batchmates-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100525"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/99667"
+        ]
+      }
+    },
+    {
+      "title": "Thukra Ke Mera Pyaar (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/thukra-ke-mera-pyaar-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100851"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100128"
+        ]
+      }
+    },
+    {
+      "title": "Karuvanam (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/karuvanam-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88266"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Resort (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/resort-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100124"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Musafir Cafe (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/musafir-cafe-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100501"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100485"
+        ]
+      }
+    },
+    {
+      "title": "Brothers And Sisters (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/brothers-and-sisters-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100736"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100047"
+        ]
+      }
+    },
+    {
+      "title": "Cousins Kalyanams (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/cousins-kalyanams-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100829"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100226"
+        ]
+      }
+    },
+    {
+      "title": "Bigg Boss (2025)",
+      "moviePageUrl": "https://moviesdatamil.net/bigg-boss-2025-tamil-season-9/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/95136"
+        ],
+        "720p": [
+          "E",
+          "Missing URL",
+          ""
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Cooku with Comali (2026)",
+      "moviePageUrl": "https://moviesdatamil.net/cooku-with-comali-2026-tamil-web-series/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/99162"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100891"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/100891"
+        ]
+      }
+    },
+    {
+      "title": "Aaragan (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/aaragan-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88371"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88372"
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "The Smile Man (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/the-smile-man-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88566"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88563"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88565"
+        ]
+      }
+    },
+    {
+      "title": "Once Upon a Time in Madras (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/once-upon-a-time-in-madras-2024-tamil-movie-1/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88571"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88570"
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Alangu (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/alangu-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88579"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88576"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88578"
+        ]
+      }
+    },
+    {
+      "title": "Singham Again (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/singham-again-2024-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88593"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88591"
+        ],
+        "1080p": [
+          "E",
+          "Missing URL",
+          ""
+        ]
+      }
+    },
+    {
+      "title": "Emakku Thozhil Romance (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/emakku-thozhil-romance-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88601"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88598"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88600"
+        ]
+      }
+    },
+    {
+      "title": "Viduthalai Part 2 (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/viduthalai-part-2-2024-tamil-movie/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88610"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88607"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88609"
+        ]
+      }
+    },
+    {
+      "title": "UI (2024)",
+      "moviePageUrl": "https://moviesdatamil.net/ui-2024-tamil-movie-1/",
+      "qualities": {
+        "480p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88620"
+        ],
+        "720p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88617"
+        ],
+        "1080p": [
+          "A",
+          "Actual authorized file URL",
+          "https://download.moviespage.xyz/download/file/88619"
+        ]
+      }
+    }
+  ]
+}
