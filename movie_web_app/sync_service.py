@@ -72,7 +72,7 @@ def log_sync_event(status: str, message: str, added_count: int = 0):
         conn.close()
 
 def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
-    if "download.moviespage.xyz" in url:
+    if "mv1.uptomkv.ch/files/" in url or ".mp4?h=" in url:
         return url
     if not url.startswith("http"):
         return url
@@ -80,6 +80,7 @@ def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
     curr = url
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
+        import urllib.parse
         from bs4 import BeautifulSoup
         should_close = False
         if client is None:
@@ -96,6 +97,35 @@ def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
                         if "moviespage.xyz/download/file/" in href:
                             curr = href
                             break
+
+            if "download.moviespage.xyz" in curr:
+                r2 = client.get(curr)
+                if r2.status_code == 200:
+                    soup2 = BeautifulSoup(r2.text, "html.parser")
+                    for a in soup2.find_all("a"):
+                        href = a.get("href", "")
+                        if "downloadpage.xyz/download/page/" in href:
+                            curr = href
+                            break
+
+            if "downloadpage.xyz" in curr:
+                r3 = client.get(curr)
+                if r3.status_code == 200:
+                    soup3 = BeautifulSoup(r3.text, "html.parser")
+                    for a in soup3.find_all("a"):
+                        href = a.get("href", "")
+                        if "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
+                            curr = href
+                            break
+
+            if "cdn.uptomkv.ch" in curr:
+                r4 = client.get(curr, follow_redirects=False)
+                if r4.status_code in (301, 302, 303, 307):
+                    loc = r4.headers.get("location", "")
+                    if loc:
+                        parsed = urllib.parse.urlparse(loc)
+                        quoted_path = urllib.parse.quote(parsed.path)
+                        curr = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, quoted_path, parsed.params, parsed.query, parsed.fragment))
         finally:
             if should_close:
                 client.close()
