@@ -104,34 +104,38 @@ def scrape_fresh_downloads(movie_page_url: str) -> dict:
     """
     Returns dict: {"480p": {"url": "...", "size": "..."}, "720p": {...}, ...}
     Keys are normalized quality strings used by the app.
+    Supports both movies and web series.
     """
     result = {}
     try:
         with httpx.Client(headers=HEADERS, follow_redirects=True, timeout=TIMEOUT) as c:
-            # L0: movie main page
+            # L0: movie or web series main page
             r0 = c.get(movie_page_url)
             if r0.status_code != 200:
                 return result
             soup0 = BeautifulSoup(r0.text, "html.parser")
 
-            # Find "original" quality grouping page
-            original_url = ""
+            # Find grouping sub-page ("original", "season", "hd", "web-series")
+            sub_url = ""
             for txt, href in get_links(soup0):
-                if "original" in txt.lower() or "original" in href.lower():
-                    original_url = href
+                t_lower, h_lower = txt.lower(), href.lower()
+                if "original" in t_lower or "original" in h_lower or "season" in t_lower or "season" in h_lower:
+                    sub_url = href
                     break
 
             quality_pages = {}  # quality -> URL of quality sub-page
 
-            if original_url:
-                # L1: original page has per-quality links
-                r1 = c.get(original_url)
+            if sub_url:
+                r1 = c.get(sub_url)
                 if r1.status_code == 200:
                     soup1 = BeautifulSoup(r1.text, "html.parser")
                     for txt, href in get_links(soup1):
                         q = infer_quality(txt) or infer_quality(href)
                         if q and q not in quality_pages:
                             quality_pages[q] = href
+                        elif "/download/" in href and "moviesdatamil.net" in href:
+                            if "480p" not in quality_pages:
+                                quality_pages["480p"] = href
 
             if not quality_pages:
                 # Fallback: look for quality links directly on main page
@@ -144,7 +148,19 @@ def scrape_fresh_downloads(movie_page_url: str) -> dict:
                 return result
 
             for raw_quality, quality_page_url in quality_pages.items():
-                # L2: quality sub-page -> /download/<slug>/ link
+                if "/download/" in quality_page_url and "moviesdatamil.net" in quality_page_url:
+                    r3 = c.get(quality_page_url)
+                    if r3.status_code == 200:
+                        soup3 = BeautifulSoup(r3.text, "html.parser")
+                        for txt3, href3 in get_links(soup3):
+                            if "download.moviespage.xyz/download/file/" in href3:
+                                fresh = follow_moviespage_chain(c, href3)
+                                if fresh:
+                                    norm_q = QUALITY_MAP.get(raw_quality, raw_quality)
+                                    result[norm_q] = {"url": fresh, "size": SIZE_HINTS.get(raw_quality, "450 MB")}
+                                    break
+                    continue
+
                 r2 = c.get(quality_page_url)
                 if r2.status_code != 200:
                     continue
@@ -152,12 +168,11 @@ def scrape_fresh_downloads(movie_page_url: str) -> dict:
 
                 download_slug_url = ""
                 for txt, href in get_links(soup2):
-                    if "/download/" in href and "moviesdatamil.net" in href and ".mp4" in txt.lower():
+                    if "/download/" in href and "moviesdatamil.net" in href:
                         download_slug_url = href
                         break
 
                 if not download_slug_url:
-                    # Alternative: direct moviespage link
                     for txt, href in get_links(soup2):
                         if "download.moviespage.xyz" in href:
                             fresh = follow_moviespage_chain(c, href)
@@ -166,16 +181,15 @@ def scrape_fresh_downloads(movie_page_url: str) -> dict:
                                 result[normalized_q] = {"url": fresh, "size": SIZE_HINTS.get(raw_quality, "")}
                     continue
 
-                # L3: /download/<slug>/ -> moviespage.xyz
                 r3 = c.get(download_slug_url)
                 if r3.status_code != 200:
                     continue
                 soup3 = BeautifulSoup(r3.text, "html.parser")
 
                 moviespage_url = ""
-                for txt, href in get_links(soup3):
-                    if "download.moviespage.xyz/download/file/" in href:
-                        moviespage_url = href
+                for txt3, href3 in get_links(soup3):
+                    if "download.moviespage.xyz/download/file/" in href3:
+                        moviespage_url = href3
                         break
 
                 if not moviespage_url:
@@ -186,10 +200,11 @@ def scrape_fresh_downloads(movie_page_url: str) -> dict:
                     normalized_q = QUALITY_MAP.get(raw_quality, raw_quality)
                     result[normalized_q] = {"url": fresh, "size": SIZE_HINTS.get(raw_quality, "")}
 
-    except Exception as e:
+    except Exception:
         pass
 
     return result
+
 
 
 def main():
@@ -202,15 +217,14 @@ def main():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
-    # By default, only refresh movies that already have fastbytes download URLs (much faster)
+    # By default, process all movies that have any downloads_json populated
     if getattr(args, 'all', False):
         rows = conn.execute(
             "SELECT id, title, url, downloads_json FROM movies ORDER BY id DESC"
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT id, title, url, downloads_json FROM movies WHERE downloads_json LIKE ? ORDER BY id ASC",
-            ("%fastbytes%",)
+            "SELECT id, title, url, downloads_json FROM movies WHERE downloads_json IS NOT NULL AND downloads_json != '' AND downloads_json != '{}' ORDER BY id ASC"
         ).fetchall()
 
     if args.limit > 0:

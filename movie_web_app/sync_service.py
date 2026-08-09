@@ -109,15 +109,16 @@ def is_direct_file_url(url: str) -> bool:
 def is_authorized_download_url(url: str) -> bool:
     """
     Returns True if the URL is a valid, authorized download destination.
+    Excludes moviesdatamil.net HTML pages.
     """
     if not is_valid_url(url):
         return False
     url = url.strip()
+    if "moviesdatamil.net" in url:
+        return False
     if is_direct_file_url(url):
         return True
     if "moviespage.xyz" in url or "downloadpage.xyz" in url:
-        return True
-    if "moviesdatamil.net" in url and ("download" in url or "original" in url):
         return True
     return False
 
