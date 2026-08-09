@@ -1,3 +1,7 @@
 *.db-journal
 __pycache__/
 *.pyc
+node_modules/
+dist/
+isaimini-mcp/node_modules/
+isaimini-mcp/dist/
