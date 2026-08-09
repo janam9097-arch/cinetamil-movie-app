@@ -342,14 +342,26 @@ async def api_status(request):
             from movie_web_app import sync_service
         conn = sync_service.get_db()
         total = conn.execute("SELECT COUNT(*) FROM movies").fetchone()[0]
-        latest_log = conn.execute("SELECT * FROM sync_logs ORDER BY id DESC LIMIT 10").fetchall()
-        logs_list = [dict(l) for l in latest_log]
-        last_updated = logs_list[0]["timestamp"] if logs_list else "N/A"
+        latest_logs = conn.execute("SELECT * FROM sync_logs ORDER BY id DESC LIMIT 15").fetchall()
+        logs_list = [dict(l) for l in latest_logs]
+        
+        last_attempt = logs_list[0]["timestamp"] if logs_list else "N/A"
+        last_success_row = conn.execute("SELECT timestamp FROM sync_logs WHERE status IN ('SUCCESS', 'PARTIAL_SUCCESS') ORDER BY id DESC LIMIT 1").fetchone()
+        last_success = last_success_row[0] if last_success_row else "N/A"
+        
+        latest_log = logs_list[0] if logs_list else {}
         conn.close()
+        
         return JSONResponse({
             "status": "active",
             "total_movies": total,
-            "last_updated": last_updated,
+            "last_successful_sync": last_success,
+            "last_attempted_sync": last_attempt,
+            "number_of_movies_added": latest_log.get("added_count", 0),
+            "number_updated": latest_log.get("updated_count", 0),
+            "number_skipped": latest_log.get("skipped_count", 0),
+            "number_of_errors": latest_log.get("error_count", 0),
+            "next_scheduled_run": "Every 6 hours via GitHub Actions (0 */6 * * *)",
             "recent_logs": logs_list
         })
     except Exception as e:

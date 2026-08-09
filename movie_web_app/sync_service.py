@@ -5,13 +5,14 @@ import json
 import sqlite3
 import datetime
 import httpx
+import urllib.parse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DB_PATH = os.path.join(BASE_DIR, "movies.db")
 MOVIES_DATA_JS_PATH = os.path.join(ROOT_DIR, "movies_data.js")
 
-# Authorized Movie Feed URL (Can be set via environment variable or custom endpoint)
+# Authorized Movie Feed URL (set via GitHub Secrets or environment variable)
 AUTHORIZED_FEED_URL = os.getenv("AUTHORIZED_MOVIE_FEED_URL", "https://api.example.com/authorized-movies-feed")
 
 def get_db():
@@ -53,86 +54,40 @@ def get_db():
             status TEXT NOT NULL,
             message TEXT NOT NULL,
             added_count INTEGER DEFAULT 0,
+            updated_count INTEGER DEFAULT 0,
+            skipped_count INTEGER DEFAULT 0,
+            error_count INTEGER DEFAULT 0,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    existing_log_cols = [row[1] for row in conn.execute("PRAGMA table_info(sync_logs)").fetchall()]
+    if "updated_count" not in existing_log_cols:
+        conn.execute("ALTER TABLE sync_logs ADD COLUMN updated_count INTEGER DEFAULT 0")
+    if "skipped_count" not in existing_log_cols:
+        conn.execute("ALTER TABLE sync_logs ADD COLUMN skipped_count INTEGER DEFAULT 0")
+    if "error_count" not in existing_log_cols:
+        conn.execute("ALTER TABLE sync_logs ADD COLUMN error_count INTEGER DEFAULT 0")
+
     conn.execute("CREATE INDEX IF NOT EXISTS idx_title ON movies(title COLLATE NOCASE)")
     conn.commit()
     return conn
 
-def log_sync_event(status: str, message: str, added_count: int = 0):
+def log_sync_event(status: str, message: str, added_count: int = 0, updated_count: int = 0, skipped_count: int = 0, error_count: int = 0):
     conn = get_db()
     try:
         conn.execute(
-            "INSERT INTO sync_logs (status, message, added_count) VALUES (?, ?, ?)",
-            (status, message, added_count)
+            "INSERT INTO sync_logs (status, message, added_count, updated_count, skipped_count, error_count) VALUES (?, ?, ?, ?, ?, ?)",
+            (status, message, added_count, updated_count, skipped_count, error_count)
         )
         conn.commit()
     finally:
         conn.close()
 
-def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
-    if "r2.cloudflarestorage.com" in url or "mv1.uptomkv.ch/files/" in url or "response-content-disposition=" in url:
-        return url
-    if not url.startswith("http"):
-        return url
-
-    curr = url
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    try:
-        import urllib.parse
-        from bs4 import BeautifulSoup
-        should_close = False
-        if client is None:
-            client = httpx.Client(headers=headers, follow_redirects=True, timeout=8.0)
-            should_close = True
-
-        try:
-            if "moviesdatamil.net/download/" in curr:
-                r1 = client.get(curr)
-                if r1.status_code == 200:
-                    soup1 = BeautifulSoup(r1.text, "html.parser")
-                    for a in soup1.find_all("a"):
-                        href = a.get("href", "")
-                        if "moviespage.xyz/download/file/" in href:
-                            curr = href
-                            break
-
-            if "download.moviespage.xyz" in curr:
-                r2 = client.get(curr)
-                if r2.status_code == 200:
-                    soup2 = BeautifulSoup(r2.text, "html.parser")
-                    for a in soup2.find_all("a"):
-                        href = a.get("href", "")
-                        if "downloadpage.xyz/download/page/" in href:
-                            curr = href
-                            break
-
-            if "downloadpage.xyz" in curr:
-                r3 = client.get(curr)
-                if r3.status_code == 200:
-                    soup3 = BeautifulSoup(r3.text, "html.parser")
-                    for a in soup3.find_all("a"):
-                        href = a.get("href", "")
-                        if "fastbytes.xyz" in href or "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
-                            curr = href
-                            break
-
-            if "fastbytes.xyz" in curr or "cdn.uptomkv.ch" in curr:
-                r4 = client.get(curr, follow_redirects=False)
-                if r4.status_code in (301, 302, 303, 307):
-                    loc = r4.headers.get("location", "")
-                    if loc:
-                        parsed = urllib.parse.urlparse(loc)
-                        quoted_path = urllib.parse.quote(parsed.path)
-                        curr = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, quoted_path, parsed.params, parsed.query, parsed.fragment))
-        finally:
-            if should_close:
-                client.close()
-    except Exception:
-        pass
-
-    return curr
+def is_valid_url(url: str) -> bool:
+    if not url or not isinstance(url, str):
+        return False
+    url = url.strip()
+    return url.startswith("http://") or url.startswith("https://") or url.startswith("file://")
 
 def export_to_movies_data_js():
     conn = get_db()
@@ -173,172 +128,192 @@ def export_to_movies_data_js():
     finally:
         conn.close()
 
-def scrape_isaimini_latest_movies():
-    """
-    Automatically scrapes latest movie uploads directly from Isaimini (moviesdatamil.net).
-    """
-    categories = [
-        ("/tamil-2026-movies/", "tamil-2026"),
-        ("/tamil-2025-movies/", "tamil-2025"),
-        ("/tamil-2024-movies/", "tamil-2024"),
-        ("/tamil-dubbed-movies/", "tamil-dubbed"),
-        ("/tamil-web-series-download/", "web-series")
-    ]
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    base_url = "https://moviesdatamil.net"
-    all_movies = []
-
-    try:
-        with httpx.Client(headers=headers, follow_redirects=True, timeout=15.0) as client:
-            for path, cat_id in categories:
-                url = f"{base_url}{path}"
-                try:
-                    r = client.get(url)
-                    if r.status_code == 200:
-                        from bs4 import BeautifulSoup
-                        soup = BeautifulSoup(r.text, "html.parser")
-                        for a in soup.select("div.f a"):
-                            href = a.get("href", "")
-                            txt = a.get_text(strip=True)
-                            if href and txt and not href.startswith("http") and "telegram" not in href.lower():
-                                year_match = re.search(r"\((\d{4})\)", txt)
-                                year = year_match.group(1) if year_match else ("2026" if "2026" in path else "2025")
-                                full_url = f"{base_url}{href}" if href.startswith("/") else f"{base_url}/{href}"
-
-                                cleaned = re.sub(r"\s*\(\d{4}\)", "", txt).strip()
-                                slug = re.sub(r"[^a-z0-9]+", "-", cleaned.lower()).strip("-")
-                                if year and year not in slug:
-                                    slug = f"{slug}-{year}"
-
-                                downloads = {
-                                    "480p": {"url": f"{base_url}/download/{slug}-original-360p-hd/", "size": "450 MB"},
-                                    "720p": {"url": f"{base_url}/download/{slug}-original-720p-hd/", "size": "850 MB"},
-                                    "1080p": {"url": f"{base_url}/download/{slug}-original-1080p-hd/", "size": "1.8 GB"}
-                                }
-
-                                all_movies.append({
-                                    "title": txt,
-                                    "year": year,
-                                    "category": cat_id,
-                                    "url": full_url,
-                                    "moviePageUrl": full_url,
-                                    "quality": "HD Rip",
-                                    "downloads": downloads
-                                })
-                except Exception as cat_err:
-                    print(f"[Sync Engine] Error scraping category {path}: {cat_err}")
-    except Exception as e:
-        print(f"[Sync Engine Error] Failed to scrape Isaimini: {e}")
-
-    return all_movies
-
 def fetch_authorized_feed():
     """
-    Fetch movies from the authorized API/feed or live Isaimini upload feed.
+    Fetches incoming movie metadata and download URLs from the authorized feed / API / local file.
+    Supports JSON feed or local test feed file.
     """
-    if AUTHORIZED_FEED_URL.startswith("https://api.example.com"):
-        print("[Sync Engine] Polling live Isaimini upload feed for new movie releases...")
-        return scrape_isaimini_latest_movies()
+    print(f"[Sync Engine] Fetching authorized movie feed from: {AUTHORIZED_FEED_URL}")
+    
+    # Check if URL is local file path (for testing or local feed)
+    if AUTHORIZED_FEED_URL.startswith("file://") or os.path.exists(AUTHORIZED_FEED_URL):
+        file_path = AUTHORIZED_FEED_URL.replace("file://", "")
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    return data
+                elif isinstance(data, dict) and "movies" in data:
+                    return data["movies"]
+        except Exception as e:
+            err_msg = f"Failed to read local feed file {file_path}: {e}"
+            print(f"[Sync Engine Error] {err_msg}")
+            log_sync_event("ERROR", err_msg, error_count=1)
+            return []
 
+    # HTTP API Feed fetch
     headers = {
         "User-Agent": "CineTamil-AuthorizedSyncEngine/1.0",
         "Accept": "application/json"
     }
 
     try:
-        with httpx.Client(headers=headers, timeout=12.0) as client:
+        with httpx.Client(headers=headers, follow_redirects=True, timeout=15.0) as client:
             response = client.get(AUTHORIZED_FEED_URL)
-            response.raise_for_status()
+            if response.status_code != 200:
+                err_msg = f"Feed HTTP {response.status_code} Error from {AUTHORIZED_FEED_URL}"
+                print(f"[Sync Engine Error] {err_msg}")
+                log_sync_event("ERROR", err_msg, error_count=1)
+                return []
+            
             data = response.json()
             if isinstance(data, list):
                 return data
             elif isinstance(data, dict) and "movies" in data:
                 return data["movies"]
             else:
-                log_sync_event("ERROR", f"Invalid feed format received from {AUTHORIZED_FEED_URL}")
+                log_sync_event("ERROR", f"Invalid feed format from {AUTHORIZED_FEED_URL}", error_count=1)
                 return []
     except Exception as e:
-        err_msg = f"Failed to fetch authorized feed from {AUTHORIZED_FEED_URL}: {str(e)}"
+        err_msg = f"Feed connection error for {AUTHORIZED_FEED_URL}: {str(e)}"
         print(f"[Sync Engine Error] {err_msg}")
-        log_sync_event("ERROR", err_msg)
+        log_sync_event("ERROR", err_msg, error_count=1)
         return []
 
 def process_movie_sync(feed_items=None):
     """
-    Processes incoming movies from authorized data source, checks for duplicates,
-    inserts new records, and exports updated data to movies_data.js.
+    Processes incoming movies from authorized data source.
+    - Prevents duplicates (matches normalized title/URL)
+    - Updates existing records if quality/metadata changed
+    - Inserts new movies automatically
+    - Exports updated movies_data.js
     """
     conn = get_db()
     if feed_items is None:
         feed_items = fetch_authorized_feed()
 
     added_count = 0
+    updated_count = 0
     skipped_count = 0
+    error_count = 0
 
     try:
         for movie in feed_items:
-            title = movie.get("title", "").strip()
-            url = movie.get("url") or movie.get("moviePageUrl") or f"https://moviesdatamil.net/movie/{title.lower().replace(' ', '-')}"
-            if not title:
+            if not isinstance(movie, dict):
+                error_count += 1
                 continue
 
-            # Prevent duplicate check by title or URL
-            existing = conn.execute("SELECT id FROM movies WHERE title = ? OR url = ?", (title, url)).fetchone()
-            if existing:
-                skipped_count += 1
+            title = str(movie.get("title", "")).strip()
+            if not title:
+                error_count += 1
+                continue
+
+            movie_page_url = movie.get("moviePageUrl") or movie.get("url") or f"https://moviesdatamil.net/movie/{title.lower().replace(' ', '-')}"
+            if not is_valid_url(movie_page_url):
+                error_count += 1
                 continue
 
             year = str(movie.get("year", ""))
-            category = movie.get("category", "tamil-2025")
-            director = movie.get("director", "")
-            starring = movie.get("starring") or movie.get("cast", "")
-            genres = movie.get("genres", "")
-            quality = movie.get("quality", "HD Rip")
-            language = movie.get("language", "Tamil")
-            rating = movie.get("rating", "")
-            synopsis = movie.get("synopsis") or movie.get("description", "")
-            poster_url = movie.get("poster_url") or movie.get("poster", "")
-            release_date = movie.get("release_date", "")
+            category = str(movie.get("category", "tamil-2025"))
+            director = str(movie.get("director", ""))
+            cast_info = str(movie.get("starring") or movie.get("cast", ""))
+            genres = str(movie.get("genres", ""))
+            quality = str(movie.get("quality", "HD Rip"))
+            language = str(movie.get("language", "Tamil"))
+            rating = str(movie.get("rating", ""))
+            synopsis = str(movie.get("synopsis") or movie.get("description", ""))
+            poster_url = str(movie.get("posterUrl") or movie.get("poster_url") or movie.get("poster", ""))
+            release_date = str(movie.get("release_date", ""))
 
-            # Downloads structure: {"480p": {"url": "...", "size": "..."}, ...}
-            downloads = movie.get("downloads", {})
-            if not downloads:
-                cleaned_title = re.sub(r'\s*\(\d{4}\)', '', title).strip()
-                slug = re.sub(r'[^a-z0-9]+', '-', cleaned_title.lower()).strip('-')
-                if year and year not in slug:
-                    slug = f"{slug}-{year}"
-                downloads = {
-                    "480p": {"url": f"https://moviesdatamil.net/download/{slug}-original-360p-hd/", "size": "450 MB"},
-                    "720p": {"url": f"https://moviesdatamil.net/download/{slug}-original-720p-hd/", "size": "850 MB"},
-                    "1080p": {"url": f"https://moviesdatamil.net/download/{slug}-original-1080p-hd/", "size": "1.8 GB"}
-                }
-            downloads_json = json.dumps(downloads)
+            # Extract & validate download URLs
+            incoming_downloads = movie.get("downloads", {})
+            valid_downloads = {}
+            if isinstance(incoming_downloads, dict):
+                for q in ["480p", "720p", "1080p"]:
+                    if q in incoming_downloads and isinstance(incoming_downloads[q], dict):
+                        q_url = incoming_downloads[q].get("url")
+                        q_size = incoming_downloads[q].get("size", "")
+                        if is_valid_url(q_url):
+                            valid_downloads[q] = {"url": q_url, "size": q_size}
 
-            conn.execute("""
-                INSERT INTO movies (
-                    title, url, year, category, director, starring, genres, quality,
-                    language, rating, synopsis, poster_url, release_date, cast, downloads_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                title, url, year, category, director, starring, genres, quality,
-                language, rating, synopsis, poster_url, release_date, starring, downloads_json
-            ))
-            added_count += 1
+            # Check if movie already exists in SQLite (by title or moviePageUrl)
+            existing = conn.execute("SELECT * FROM movies WHERE title = ? OR url = ?", (title, movie_page_url)).fetchone()
+
+            if existing:
+                # Compare existing data vs incoming data
+                row_dict = dict(existing)
+                existing_dls = {}
+                if row_dict.get("downloads_json"):
+                    try:
+                        existing_dls = json.loads(row_dict["downloads_json"])
+                    except Exception:
+                        existing_dls = {}
+
+                # Merge downloads: incoming qualities add or update existing qualities
+                merged_dls = dict(existing_dls)
+                dls_changed = False
+                for q, q_obj in valid_downloads.items():
+                    if q not in merged_dls or merged_dls[q].get("url") != q_obj["url"] or merged_dls[q].get("size") != q_obj["size"]:
+                        merged_dls[q] = q_obj
+                        dls_changed = True
+
+                meta_changed = (
+                    (poster_url and row_dict.get("poster_url") != poster_url) or
+                    (synopsis and row_dict.get("synopsis") != synopsis) or
+                    (cast_info and row_dict.get("starring") != cast_info) or
+                    (director and row_dict.get("director") != director) or
+                    (release_date and row_dict.get("release_date") != release_date)
+                )
+
+                if dls_changed or meta_changed:
+                    conn.execute("""
+                        UPDATE movies SET
+                            poster_url = COALESCE(NULLIF(?, ''), poster_url),
+                            synopsis = COALESCE(NULLIF(?, ''), synopsis),
+                            starring = COALESCE(NULLIF(?, ''), starring),
+                            director = COALESCE(NULLIF(?, ''), director),
+                            release_date = COALESCE(NULLIF(?, ''), release_date),
+                            downloads_json = ?
+                        WHERE id = ?
+                    """, (poster_url, synopsis, cast_info, director, release_date, json.dumps(merged_dls), row_dict["id"]))
+                    updated_count += 1
+                else:
+                    skipped_count += 1
+            else:
+                # Insert new movie record
+                downloads_json = json.dumps(valid_downloads)
+                conn.execute("""
+                    INSERT INTO movies (
+                        title, url, year, category, director, starring, genres, quality,
+                        language, rating, synopsis, poster_url, release_date, cast, downloads_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    title, movie_page_url, year, category, director, cast_info, genres, quality,
+                    language, rating, synopsis, poster_url, release_date, cast_info, downloads_json
+                ))
+                added_count += 1
 
         conn.commit()
 
-        msg = f"Sync Completed: {added_count} new movie(s) added, {skipped_count} existing movie(s) skipped."
+        status_str = "SUCCESS" if error_count == 0 else "PARTIAL_SUCCESS"
+        msg = f"Sync Completed: {added_count} added, {updated_count} updated, {skipped_count} skipped, {error_count} error(s)."
         print(f"[Sync Engine] {msg}")
-        log_sync_event("SUCCESS", msg, added_count=added_count)
+        log_sync_event(status_str, msg, added_count=added_count, updated_count=updated_count, skipped_count=skipped_count, error_count=error_count)
 
-        # Export to static movies_data.js
+        # Export static root/movies_data.js
         export_to_movies_data_js()
 
-        return {"added": added_count, "skipped": skipped_count, "status": "SUCCESS"}
+        return {
+            "added": added_count,
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "errors": error_count,
+            "status": status_str
+        }
     except Exception as e:
         err_msg = f"Database sync execution error: {str(e)}"
         print(f"[Sync Engine Error] {err_msg}")
-        log_sync_event("ERROR", err_msg)
+        log_sync_event("ERROR", err_msg, error_count=1)
         return {"error": str(e), "status": "ERROR"}
     finally:
         conn.close()
