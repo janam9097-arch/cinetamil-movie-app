@@ -72,7 +72,7 @@ def log_sync_event(status: str, message: str, added_count: int = 0):
         conn.close()
 
 def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
-    if "mv1.uptomkv.ch/files/" in url or ".mp4?h=" in url:
+    if "r2.cloudflarestorage.com" in url or "mv1.uptomkv.ch/files/" in url or "response-content-disposition=" in url:
         return url
     if not url.startswith("http"):
         return url
@@ -114,11 +114,11 @@ def resolve_direct_cdn_url(url: str, client: httpx.Client = None) -> str:
                     soup3 = BeautifulSoup(r3.text, "html.parser")
                     for a in soup3.find_all("a"):
                         href = a.get("href", "")
-                        if "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
+                        if "fastbytes.xyz" in href or "cdn.uptomkv.ch" in href or "download.php?dl=" in href:
                             curr = href
                             break
 
-            if "cdn.uptomkv.ch" in curr:
+            if "fastbytes.xyz" in curr or "cdn.uptomkv.ch" in curr:
                 r4 = client.get(curr, follow_redirects=False)
                 if r4.status_code in (301, 302, 303, 307):
                     loc = r4.headers.get("location", "")
