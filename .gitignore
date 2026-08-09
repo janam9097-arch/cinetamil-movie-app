@@ -1,16 +1,3 @@
-# Dependencies & Virtual Envs
-node_modules/
-.venv/
-venv/
+*.db-journal
 __pycache__/
 *.pyc
-
-# Build outputs
-dist/
-build/
-
-# Logs & temp
-*.log
-.DS_Store
-.vscode/
-.idea/
