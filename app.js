@@ -204,9 +204,13 @@ function performSearch(query) {
   }
 }
 
-// URL TYPE CLASSIFIER — matches sync_service.py is_direct_file_url / is_authorized_download_url
+// URL TYPE CLASSIFIER
+// "direct"  = real file download endpoint (cdn.uptomkv.ch, fastbytes.xyz, .mp4)
+// "page"    = an authorised intermediate download page (moviespage.xyz, downloadpage.xyz)
+// "unavailable" = anything else (HTML info pages, broken links, etc.)
 function getUrlType(url) {
   if (!url) return "unavailable";
+  // Direct file download endpoints
   if (
     url.includes("uptomkv.ch") ||
     url.includes("fastbytes.xyz") ||
@@ -215,8 +219,10 @@ function getUrlType(url) {
     url.endsWith(".mp4") ||
     url.includes(".mp4?")
   ) return "direct";
-  if (url.includes("moviespage.xyz") || url.includes("downloadpage.xyz") || url.includes("moviesdatamil.net")) return "page";
-  return "direct";
+  // Authorised intermediate download pages (NOT moviesdatamil.net info pages)
+  if (url.includes("moviespage.xyz") || url.includes("downloadpage.xyz")) return "page";
+  // Everything else (moviesdatamil.net HTML pages, unknown domains) — not a real download
+  return "unavailable";
 }
 
 // QUALITY SELECTION HANDLER
@@ -330,11 +336,18 @@ function openMovieDetails(movie) {
   const pageUrl = movie.moviePageUrl || "#";
 
   // Filter available qualities in deterministic order (480p, 720p, 1080p)
+  // Only include qualities where the stored URL is a real download endpoint
   const downloadsObj = movie.downloads || {};
   const preferredOrder = ["480p", "720p", "1080p"];
-  const availableQualities = preferredOrder.filter(q => downloadsObj[q] && downloadsObj[q].url);
+  const availableQualities = preferredOrder.filter(q =>
+    downloadsObj[q] && downloadsObj[q].url && getUrlType(downloadsObj[q].url) !== "unavailable"
+  );
   Object.keys(downloadsObj).forEach(q => {
-    if (downloadsObj[q] && downloadsObj[q].url && !availableQualities.includes(q)) {
+    if (
+      downloadsObj[q] && downloadsObj[q].url &&
+      getUrlType(downloadsObj[q].url) !== "unavailable" &&
+      !availableQualities.includes(q)
+    ) {
       availableQualities.push(q);
     }
   });
