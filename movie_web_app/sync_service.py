@@ -181,6 +181,16 @@ def process_movie_sync(feed_items=None):
 
             # Downloads structure: {"480p": {"url": "...", "size": "..."}, ...}
             downloads = movie.get("downloads", {})
+            if not downloads:
+                cleaned_title = re.sub(r'\s*\(\d{4}\)', '', title).strip()
+                slug = re.sub(r'[^a-z0-9]+', '-', cleaned_title.lower()).strip('-')
+                if year and year not in slug:
+                    slug = f"{slug}-{year}"
+                downloads = {
+                    "480p": {"url": f"https://moviesdatamil.net/download/{slug}-original-360p-hd/", "size": "450 MB"},
+                    "720p": {"url": f"https://moviesdatamil.net/download/{slug}-original-720p-hd/", "size": "850 MB"},
+                    "1080p": {"url": f"https://moviesdatamil.net/download/{slug}-original-1080p-hd/", "size": "1.8 GB"}
+                }
             downloads_json = json.dumps(downloads)
 
             conn.execute("""
