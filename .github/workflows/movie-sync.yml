@@ -6,10 +6,10 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
-# Prevent concurrent jobs by canceling outdated in-progress runs
+# Shared concurrency group across catalog-modifying workflows
 concurrency:
-  group: catalog-sync-group
-  cancel-in-progress: true
+  group: main-catalog-update
+  cancel-in-progress: false
 
 jobs:
   sync-movies:
@@ -52,14 +52,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           TMP_DIR=$(mktemp -d)
+          trap 'rm -rf "$TMP_DIR"' EXIT
+
           cp movies_data.js "$TMP_DIR/movies_data.js"
           cp movie_web_app/movies.db "$TMP_DIR/movies.db"
 
           MAX_RETRIES=5
           RETRY=0
           PUSH_SUCCESS=0
+          DELAYS=(2 4 8 16 32)
 
           while [ $RETRY -lt $MAX_RETRIES ]; do
+            DELAY=${DELAYS[$RETRY]}
             RETRY=$((RETRY + 1))
             echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
 
@@ -83,12 +87,10 @@ jobs:
               echo "[OK] Successfully pushed updated catalog to main."
               break
             else
-              echo "[WARNING] Push rejected. Retrying in 5 seconds..."
-              sleep 5
+              echo "[WARNING] Push rejected. Retrying in ${DELAY}s..."
+              sleep $DELAY
             fi
           done
-
-          rm -rf "$TMP_DIR"
 
           if [ $PUSH_SUCCESS -ne 1 ]; then
             echo "[ERROR] Failed to push changes after $MAX_RETRIES attempts."
