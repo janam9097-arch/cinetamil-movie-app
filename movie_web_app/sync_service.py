@@ -92,42 +92,34 @@ def is_valid_url(url: str) -> bool:
 
 def is_direct_file_url(url: str) -> bool:
     """
-    Returns True if the URL points directly to a downloadable file (not an HTML page).
+    Returns True if the URL points directly to a downloadable file endpoint.
     These get labelled "Direct Download" in the UI.
     """
     if not url:
         return False
     return (
-        "mv1.uptomkv.ch/files/" in url or
-        "download.fastbytes.xyz/download.php" in url or
+        "uptomkv.ch" in url or
+        "fastbytes.xyz" in url or
         "r2.cloudflarestorage.com" in url or
+        "download.php" in url or
         url.endswith(".mp4") or
         ".mp4?" in url
     )
 
 def is_authorized_download_url(url: str) -> bool:
     """
-    Returns True if the URL is a legitimate, authorized download destination.
-    This includes:
-    - Direct file URLs (mv1.uptomkv.ch, fastbytes, r2, .mp4)
-    - Authorized intermediate download-page URLs (download.moviespage.xyz/download/file/)
-    Excludes:
-    - moviesdatamil.net movie-info pages (not download pages)
-    - downloadpage.xyz/download/page/ (Level 2 intermediate, not stored)
+    Returns True if the URL is a valid, authorized download destination.
     """
     if not is_valid_url(url):
         return False
     url = url.strip()
-    # Exclude movie-info pages and deeper intermediate pages — not useful to store
-    if "moviesdatamil.net" in url:
-        return False
-    if "downloadpage.xyz/download/page/" in url:
-        return False
-    # Accept authorized download-page URLs from the feed
-    if "download.moviespage.xyz/download/file/" in url:
+    if is_direct_file_url(url):
         return True
-    # Accept direct file URLs
-    return is_direct_file_url(url)
+    if "moviespage.xyz" in url or "downloadpage.xyz" in url:
+        return True
+    if "moviesdatamil.net" in url and ("download" in url or "original" in url):
+        return True
+    return False
 
 def resolve_url_to_authorized_sync(url: str) -> str:
     """

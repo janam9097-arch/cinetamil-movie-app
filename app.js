@@ -208,14 +208,15 @@ function performSearch(query) {
 function getUrlType(url) {
   if (!url) return "unavailable";
   if (
-    url.includes("mv1.uptomkv.ch/files/") ||
-    url.includes("download.fastbytes.xyz/download.php") ||
+    url.includes("uptomkv.ch") ||
+    url.includes("fastbytes.xyz") ||
     url.includes("r2.cloudflarestorage.com") ||
+    url.includes("download.php") ||
     url.endsWith(".mp4") ||
     url.includes(".mp4?")
   ) return "direct";
-  if (url.includes("download.moviespage.xyz/download/file/")) return "page";
-  return "unavailable";
+  if (url.includes("moviespage.xyz") || url.includes("downloadpage.xyz") || url.includes("moviesdatamil.net")) return "page";
+  return "direct";
 }
 
 // QUALITY SELECTION HANDLER
@@ -347,6 +348,8 @@ function openMovieDetails(movie) {
     </button>
   `).join("");
 
+  const hasQualities = availableQualities.length > 0;
+
   content.innerHTML = `
     <div>
       <h2 class="modal-title">${title}</h2>
@@ -372,17 +375,23 @@ function openMovieDetails(movie) {
         <div class="quality-selection-title">Select Quality</div>
         
         <div class="quality-pills-row">
-          ${availableQualities.length > 0 ? pillsHtml : `<span style="color: var(--text-secondary); font-size: 0.85rem;">No download qualities available for this movie.</span>`}
+          ${hasQualities ? pillsHtml : `<span style="color: var(--text-secondary); font-size: 0.85rem;">Direct download qualities not pre-cached. Click below to view download page.</span>`}
         </div>
 
         <div class="quality-details-info">
-          <div>Selected: <strong id="selectedQualityLabel">--</strong></div>
-          <div>Size: <strong id="selectedQualitySize">--</strong></div>
+          <div>Selected: <strong id="selectedQualityLabel">${hasQualities ? '--' : 'Source Page'}</strong></div>
+          <div>Size: <strong id="selectedQualitySize">${hasQualities ? '--' : 'Full Movie'}</strong></div>
         </div>
 
-        <button id="mainDownloadActionBtn" onclick="downloadMovie(currentMovieObject, currentSelectedQuality)" class="main-download-btn" disabled>
-          ⬇ Download Movie
-        </button>
+        ${hasQualities ? `
+          <button id="mainDownloadActionBtn" onclick="downloadMovie(currentMovieObject, currentSelectedQuality)" class="main-download-btn" disabled>
+            ⬇ Download Movie
+          </button>
+        ` : `
+          <a href="${pageUrl}" target="_blank" rel="noreferrer noopener" class="main-download-btn" style="display: flex; align-items: center; justify-content: center; text-decoration: none;">
+            🌐 Open Download Page
+          </a>
+        `}
       </div>
     </div>
   `;
@@ -390,10 +399,11 @@ function openMovieDetails(movie) {
   if (modal) modal.classList.add("active");
 
   // Auto-select first available quality
-  if (availableQualities.length > 0) {
+  if (hasQualities) {
     selectQuality(availableQualities[0]);
   }
 }
+
 
 // CLOSE MODAL
 function closeModal() {
