@@ -51,53 +51,46 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          echo "[INFO] Fetching latest origin/main..."
-          git fetch origin main
+          TMP_DIR=$(mktemp -d)
+          cp movies_data.js "$TMP_DIR/movies_data.js"
+          cp movie_web_app/movies.db "$TMP_DIR/movies.db"
 
-          echo "[INFO] Stashing generated changes for safe rebase..."
-          git stash push -m "generated-sync-changes" -- movies_data.js movie_web_app/movies.db
+          MAX_RETRIES=5
+          RETRY=0
+          PUSH_SUCCESS=0
 
-          echo "[INFO] Rebasing local branch onto origin/main..."
-          if ! git rebase origin/main; then
-            echo "[WARNING] Rebase conflict encountered. Aborting rebase and resetting..."
-            git rebase --abort
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            RETRY=$((RETRY + 1))
+            echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
+
+            git fetch origin main
             git reset --hard origin/main
-          fi
 
-          echo "[INFO] Restoring generated changes..."
-          git stash pop || true
+            cp "$TMP_DIR/movies_data.js" movies_data.js
+            cp "$TMP_DIR/movies.db" movie_web_app/movies.db
 
-          git add movies_data.js movie_web_app/movies.db
+            git add movies_data.js movie_web_app/movies.db
 
-          if git diff --staged --quiet; then
-            echo "[INFO] No changes found. Catalog is up to date."
-          else
-            git commit -m "Auto-Sync: Updated catalog with direct download URLs [skip ci]"
-
-            MAX_RETRIES=3
-            RETRY=0
-            PUSH_SUCCESS=0
-
-            while [ $RETRY -lt $MAX_RETRIES ]; do
-              RETRY=$((RETRY + 1))
-              echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
-              if git push origin HEAD:main; then
-                PUSH_SUCCESS=1
-                echo "[OK] Successfully pushed updated catalog to main."
-                break
-              else
-                echo "[WARNING] Push rejected. Fetching and rebasing onto origin/main..."
-                git fetch origin main
-                if ! git rebase origin/main; then
-                  echo "[ERROR] Rebase failed during push retry."
-                  git rebase --abort
-                  break
-                fi
-              fi
-            done
-
-            if [ $PUSH_SUCCESS -ne 1 ]; then
-              echo "[ERROR] Failed to push changes after $MAX_RETRIES attempts."
-              exit 1
+            if git diff --staged --quiet; then
+              echo "[INFO] No changes found. Catalog is up to date."
+              PUSH_SUCCESS=1
+              break
             fi
+
+            git commit -m "Auto-Sync: Updated catalog with direct download URLs [skip ci]"
+            if git push origin HEAD:main; then
+              PUSH_SUCCESS=1
+              echo "[OK] Successfully pushed updated catalog to main."
+              break
+            else
+              echo "[WARNING] Push rejected. Retrying in 2 seconds..."
+              sleep 2
+            fi
+          done
+
+          rm -rf "$TMP_DIR"
+
+          if [ $PUSH_SUCCESS -ne 1 ]; then
+            echo "[ERROR] Failed to push changes after $MAX_RETRIES attempts."
+            exit 1
           fi

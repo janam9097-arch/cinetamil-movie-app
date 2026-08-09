@@ -28,7 +28,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Full commit history so git rebase and push work cleanly
+          fetch-depth: 0   # Full commit history so git operations work cleanly
 
       # ── 2. PYTHON SETUP ────────────────────────────────────────────────────
       - name: Set up Python 3.11
@@ -135,62 +135,54 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # 2. Fetch latest remote main branch
-          echo "[INFO] Fetching latest origin/main..."
-          git fetch origin main
+          # 2. Backup generated files to a temporary directory before syncing
+          TMP_DIR=$(mktemp -d)
+          cp movies_data.js "$TMP_DIR/movies_data.js"
+          cp movie_web_app/movies.db "$TMP_DIR/movies.db"
 
-          # 3. Safely rebase working tree onto latest origin/main
-          echo "[INFO] Stashing generated changes for safe rebase..."
-          git stash push -m "generated-catalog-changes" -- movies_data.js movie_web_app/movies.db
+          MAX_RETRIES=5
+          RETRY=0
+          PUSH_SUCCESS=0
 
-          echo "[INFO] Rebasing local branch onto origin/main..."
-          if ! git rebase origin/main; then
-            echo "[WARNING] Rebase conflict encountered. Aborting rebase and resetting to origin/main..."
-            git rebase --abort
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            RETRY=$((RETRY + 1))
+            echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
+
+            # Always fetch latest remote main and reset cleanly
+            git fetch origin main
             git reset --hard origin/main
-          fi
 
-          echo "[INFO] Restoring generated changes..."
-          git stash pop || true
+            # Restore generated files onto clean remote base
+            cp "$TMP_DIR/movies_data.js" movies_data.js
+            cp "$TMP_DIR/movies.db" movie_web_app/movies.db
 
-          # 4. Stage ONLY intended generated files
-          git add movies_data.js movie_web_app/movies.db
+            # Stage ONLY intended generated files
+            git add movies_data.js movie_web_app/movies.db
 
-          # 5. Check if there are actual diffs staged
-          if git diff --staged --quiet; then
-            echo "[INFO] No changes detected in generated files. Catalog is already up to date."
-          else
-            echo "[INFO] Committing updated generated files..."
-            git commit -m "Auto-Refresh: Updated direct download URLs [skip ci]"
-
-            # 6. Safe push retry loop without force-pushing
-            MAX_RETRIES=3
-            RETRY=0
-            PUSH_SUCCESS=0
-
-            while [ $RETRY -lt $MAX_RETRIES ]; do
-              RETRY=$((RETRY + 1))
-              echo "[INFO] Push attempt $RETRY of $MAX_RETRIES..."
-              if git push origin HEAD:main; then
-                PUSH_SUCCESS=1
-                echo "[OK] Successfully pushed updated catalog to main."
-                break
-              else
-                echo "[WARNING] Push rejected by origin/main. Fetching latest remote commits and rebasing..."
-                git fetch origin main
-                if ! git rebase origin/main; then
-                  echo "[ERROR] Rebase failed during push retry. Aborting rebase."
-                  git rebase --abort
-                  break
-                fi
-              fi
-            done
-
-            if [ $PUSH_SUCCESS -ne 1 ]; then
-              echo "[ERROR] Failed to push changes to origin/main after $MAX_RETRIES safe attempts."
-              echo "        The remote branch may have received incompatible commits."
-              exit 1
+            # Check if there are actual diffs staged vs latest origin/main
+            if git diff --staged --quiet; then
+              echo "[INFO] No changes detected. Catalog is already up to date with origin/main."
+              PUSH_SUCCESS=1
+              break
             fi
+
+            # Commit and attempt push
+            git commit -m "Auto-Refresh: Updated direct download URLs [skip ci]"
+            if git push origin HEAD:main; then
+              PUSH_SUCCESS=1
+              echo "[OK] Successfully pushed updated catalog to main."
+              break
+            else
+              echo "[WARNING] Push rejected by origin/main. Retrying in 2 seconds..."
+              sleep 2
+            fi
+          done
+
+          rm -rf "$TMP_DIR"
+
+          if [ $PUSH_SUCCESS -ne 1 ]; then
+            echo "[ERROR] Failed to push changes to origin/main after $MAX_RETRIES attempts."
+            exit 1
           fi
 
       # ── 8. COMPLETION LOGGING ──────────────────────────────────────────────
