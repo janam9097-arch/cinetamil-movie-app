@@ -212,7 +212,12 @@ function selectQuality(quality) {
   const errorBox = document.getElementById("downloadModalErrorNotice");
 
   if (!downloadInfo || !downloadInfo.url) {
-    showDownloadError(`${quality} download is currently unavailable.`);
+    showDownloadError(`Download unavailable for ${quality}.`);
+    const mainBtnEl = document.getElementById("mainDownloadActionBtn");
+    if (mainBtnEl) {
+      mainBtnEl.innerText = `⚠️ Download Unavailable (${quality})`;
+      mainBtnEl.disabled = true;
+    }
     return;
   }
 
@@ -232,22 +237,33 @@ function selectQuality(quality) {
 
   if (labelEl) labelEl.innerText = quality;
   if (sizeEl) sizeEl.innerText = downloadInfo.size || "Unknown Size";
+
   if (mainBtnEl) {
-    mainBtnEl.innerText = `⬇ Download ${quality}`;
+    const url = downloadInfo.url;
+    const isDirectFile = url.includes("mv1.uptomkv.ch") || url.includes("r2.cloudflarestorage.com") || url.endsWith(".mp4") || url.includes(".mp4?");
+    if (isDirectFile) {
+      mainBtnEl.innerText = `⬇ Direct File Download (${quality})`;
+    } else if (url.includes("download.moviespage.xyz")) {
+      mainBtnEl.innerText = `🔗 Open Download Page (${quality})`;
+    } else {
+      mainBtnEl.innerText = `⬇ Download (${quality})`;
+    }
     mainBtnEl.disabled = false;
   }
 }
 
 // DOWNLOAD MOVIE DIRECT HANDLER
-async function downloadMovie(movie, quality) {
+function downloadMovie(movie, quality) {
   const download = movie?.downloads?.[quality];
 
-  // Console debugging per specification
-  console.log("Movie:", movie?.title);
-  console.log("Quality:", quality);
-  console.log("Download URL:", download?.url);
+  // Stage console logging per specification
+  console.log("[SYNC] source URL:", movie?.moviePageUrl);
+  console.log("[DB] download URL:", download?.url);
+  console.log("[DATA] movie downloads:", movie?.downloads);
+  console.log("[UI] selected quality:", quality);
+  console.log("[UI] final download URL:", download?.url);
 
-  // Strict check: download object & URL must exist and must NOT be a webpage (moviesdatamil.net)
+  // Strict check: download object & URL must exist and must NOT be an invalid webpage
   if (
     !download ||
     !download.url ||
@@ -260,23 +276,19 @@ async function downloadMovie(movie, quality) {
     return;
   }
 
-  let targetUrl = download.url;
+  const targetUrl = download.url;
 
-  // Try resolving direct server file link if backend API is available
+  // Synchronous window opening on click event to prevent popup blockers and white screens
   try {
-    const res = await fetch(`/api/resolve_download?url=${encodeURIComponent(download.url)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.download_url) {
-        targetUrl = data.download_url;
-      }
+    const win = window.open(targetUrl, "_blank", "noopener,noreferrer");
+    if (!win || win.closed || typeof win.closed === "undefined") {
+      // Fallback if popup blocker intercepted synchronous open
+      window.location.href = targetUrl;
     }
   } catch (e) {
-    // Static fallback
+    console.error("Window open error:", e);
+    showDownloadError("Download unavailable for this quality.");
   }
-
-  // Open the target download URL in a new tab
-  window.open(targetUrl, "_blank", "noopener,noreferrer");
 }
 
 // SHOW DOWNLOAD ERROR NOTIFICATION
